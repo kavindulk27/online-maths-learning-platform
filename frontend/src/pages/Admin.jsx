@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
     LayoutDashboard, 
     CreditCard, 
@@ -38,6 +38,39 @@ const Admin = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('dashboard');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [students, setStudents] = useState(() => {
+        const saved = localStorage.getItem('all_students');
+        return saved ? JSON.parse(saved) : [];
+    });
+
+    useEffect(() => {
+        const handleStorageChange = () => {
+            const saved = localStorage.getItem('all_students');
+            if (saved) {
+                // Normalize grades for existing data (e.g., "11" -> "Grade 11")
+                const parsed = JSON.parse(saved);
+                let changed = false;
+                const normalized = parsed.map(s => {
+                    if (s.grade && !s.grade.startsWith('Grade ')) {
+                        changed = true;
+                        return { ...s, grade: `Grade ${s.grade.trim()}` };
+                    }
+                    return s;
+                });
+                
+                if (changed) {
+                    localStorage.setItem('all_students', JSON.stringify(normalized));
+                    setStudents(normalized);
+                } else {
+                    setStudents(parsed);
+                }
+            }
+        };
+
+        handleStorageChange(); // Initial normalization and load
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
 
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
@@ -164,12 +197,12 @@ const Admin = () => {
                             transition={{ duration: 0.2 }}
                             className="max-w-7xl mx-auto"
                         >
-                            {activeTab === 'dashboard' && <DashboardContent />}
-                            {activeTab === 'students' && <StudentContent />}
-                            {activeTab === 'payments' && <PaymentContent />}
+                            {activeTab === 'dashboard' && <DashboardContent students={students} />}
+                            {activeTab === 'students' && <StudentContent students={students} setStudents={setStudents} />}
+                            {activeTab === 'payments' && <PaymentContent students={students} setStudents={setStudents} />}
                             {activeTab === 'classes' && <ClassContent />}
-                            {activeTab === 'marks' && <MarksContent />}
-                            {activeTab === 'homework' && <HomeworkContent />}
+                            {activeTab === 'marks' && <MarksContent students={students} />}
+                            {activeTab === 'homework' && <HomeworkContent students={students} />}
                             { activeTab === 'recordings' && <RecordingContent />}
                             { activeTab === 'home-videos' && <HomeVideoContent />}
                             { activeTab === 'reports' && <ReportContent />}
@@ -248,16 +281,21 @@ const ReportContent = () => (
 
 /* Content Components */
 
-const DashboardContent = () => (
-    <div className="space-y-8">
-        {/* Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-                { label: 'Total Students', value: '1,248', icon: <Users size={24} />, color: 'bg-blue-500' },
-                { label: 'Active Classes', value: '12', icon: <Video size={24} />, color: 'bg-green-500' },
-                { label: 'Today\'s Earnings', value: 'Rs. 42,000', icon: <CreditCard size={24} />, color: 'bg-orange-500' },
-                { label: 'Pending Homework', value: '85', icon: <FileSpreadsheet size={24} />, color: 'bg-purple-500' },
-            ].map((stat, i) => (
+const DashboardContent = ({ students }) => {
+    const totalStudents = students.length;
+    const pendingPayments = students.filter(s => s.status === 'Pending').length;
+    const approvedStudents = students.filter(s => s.status === 'Approved').length;
+
+    return (
+        <div className="space-y-8">
+            {/* Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                    { label: 'Total Students', value: totalStudents.toLocaleString(), icon: <Users size={24} />, color: 'bg-blue-500' },
+                    { label: 'Approved Students', value: approvedStudents.toLocaleString(), icon: <CheckCircle2 size={24} />, color: 'bg-green-500' },
+                    { label: 'Pending Approvals', value: pendingPayments.toLocaleString(), icon: <CreditCard size={24} />, color: 'bg-orange-500' },
+                    { label: 'Today\'s Classes', value: '02', icon: <Video size={24} />, color: 'bg-purple-500' },
+                ].map((stat, i) => (
                 <div key={i} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center space-x-4">
                     <div className={`${stat.color} p-4 rounded-2xl text-white shadow-lg`}>
                         {stat.icon}
@@ -345,340 +383,645 @@ const DashboardContent = () => (
                         <ChevronRight size={16} className="text-gray-300" />
                     </div>
                 </div>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
-const StudentContent = () => (
-    <div className="space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-                <h3 className="text-lg font-black text-gray-800 leading-none mb-1">Active Students</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Manage your learner community</p>
+const StudentContent = ({ students, setStudents }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedGrade, setSelectedGrade] = useState('Grade 6');
+
+    const handleDeleteStudent = (id) => {
+        if (window.confirm('පද්ධතියෙන් මෙම ශිෂ්‍යයා සම්පූර්ණයෙන්ම ඉවත් කිරීමට ඔබට විශ්වාසද? (Are you sure you want to delete this student?)')) {
+            const updated = students.filter(s => s.id !== id);
+            setStudents(updated);
+            localStorage.setItem('all_students', JSON.stringify(updated));
+        }
+    };
+
+    const grades = ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11'];
+
+    const handleStatusToggle = (student) => {
+        const newStatus = student.status === 'Approved' ? 'Unpaid' : 'Approved';
+        const updatedStudents = students.map(s => 
+            s.id === student.id ? { ...s, status: newStatus } : s
+        );
+        setStudents(updatedStudents);
+        localStorage.setItem('all_students', JSON.stringify(updatedStudents));
+
+        const currentStudent = JSON.parse(localStorage.getItem('current_student') || '{}');
+        if (currentStudent.id === student.id) {
+            localStorage.setItem('current_student', JSON.stringify({ ...currentStudent, paymentStatus: newStatus }));
+            window.dispatchEvent(new Event('storage'));
+        }
+    };
+
+    const filteredStudents = students.filter(s => 
+        s.grade === selectedGrade && (
+            s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            s.id.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+    );
+
+    return (
+        <div className="space-y-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <h3 className="text-lg font-black text-gray-800 leading-none mb-1">Student Management</h3>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Manage your learner community by grade</p>
+                </div>
+                <div className="flex space-x-3 items-center">
+                    <div className="relative group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={16} />
+                        <input 
+                            type="text" 
+                            placeholder="Search in this grade..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-12 pr-6 py-3 border border-gray-100 rounded-2xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all w-64 text-sm font-bold"
+                        />
+                    </div>
+                    <button className="bg-primary hover:bg-secondary text-white px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 flex items-center space-x-2">
+                        <Plus size={18} />
+                        <span>Add Student</span>
+                    </button>
+                </div>
             </div>
-            <div className="flex space-x-3">
-                <button className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all">Bulk Export</button>
-                <button className="bg-primary hover:bg-secondary text-white px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 flex items-center space-x-2">
-                    <Plus size={18} />
-                    <span>Add Student</span>
+
+            {/* Grade Tabs */}
+            <div className="flex flex-wrap gap-2 p-1.5 bg-gray-100/50 rounded-2xl w-fit">
+                {grades.map(grade => (
+                    <button
+                        key={grade}
+                        onClick={() => setSelectedGrade(grade)}
+                        className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
+                            selectedGrade === grade 
+                            ? 'bg-white text-primary shadow-sm shadow-gray-200' 
+                            : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
+                        }`}
+                    >
+                        {grade}
+                    </button>
+                ))}
+            </div>
+
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50/50 border-b border-gray-100">
+                            <tr>
+                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Student Info</th>
+                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">School</th>
+                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Payment Status</th>
+                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {filteredStudents.length > 0 ? (
+                                filteredStudents.map((stu, i) => (
+                                    <tr key={stu.id} className="hover:bg-gray-50/30 transition-colors group">
+                                        <td className="px-8 py-6">
+                                            <div className="flex items-center space-x-4">
+                                                <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 font-black text-xs">
+                                                    {stu.name[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-gray-800 leading-none mb-1">{stu.name}</p>
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ID: {stu.id}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            <p className="text-sm font-bold text-gray-700 leading-none">{stu.school}</p>
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                                stu.status === 'Approved' ? 'bg-green-100 text-green-600' : 
+                                                stu.status === 'Pending' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'
+                                            }`}>
+                                                {stu.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-8 py-6 text-right">
+                                            <div className="flex items-center justify-end space-x-2">
+                                                <button 
+                                                    onClick={() => alert(`Editing student: ${stu.name}\nFeature coming soon: profile details update.`)}
+                                                    className="p-2 text-gray-400 hover:text-secondary hover:bg-secondary/5 rounded-lg transition-all"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeleteStudent(stu.id)}
+                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="5" className="px-8 py-12 text-center">
+                                        <div className="flex flex-col items-center">
+                                            <User className="text-gray-200 mb-4" size={48} />
+                                            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No students found in {selectedGrade}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+const PaymentContent = ({ students, setStudents }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const handleStatusToggle = (student) => {
+        const newStatus = student.status === 'Approved' ? 'Unpaid' : 'Approved';
+        const updatedStudents = students.map(s => 
+            s.id === student.id ? { ...s, status: newStatus } : s
+        );
+        setStudents(updatedStudents);
+        localStorage.setItem('all_students', JSON.stringify(updatedStudents));
+
+        const currentStudent = JSON.parse(localStorage.getItem('current_student') || '{}');
+        if (currentStudent.id === student.id) {
+            localStorage.setItem('current_student', JSON.stringify({ ...currentStudent, paymentStatus: newStatus }));
+            window.dispatchEvent(new Event('storage'));
+        }
+    };
+
+    const filteredStudents = students.filter(s => {
+        const query = searchTerm.toLowerCase();
+        const matchesSearch = s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query);
+        
+        if (searchTerm) return matchesSearch;
+        return s.status === 'Pending';
+    });
+
+    return (
+        <div className="space-y-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <h3 className="text-lg font-black text-gray-800 leading-none mb-1">Quick Search & Approve</h3>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Global student search for instant payment approval</p>
+                </div>
+                <div className="relative group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder="Search Student ID or Name..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-12 pr-6 py-3.5 border border-gray-100 rounded-2xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all w-80 text-sm font-bold shadow-sm"
+                    />
+                </div>
+            </div>
+            
+            <div className="bg-white rounded-[40px] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50/50 border-b border-gray-100">
+                            <tr>
+                                <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Student Details</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Class/Grade</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Approve/Reject</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {filteredStudents.length > 0 ? (
+                                filteredStudents.map((stu, i) => (
+                                    <tr key={stu.id} className="hover:bg-gray-50/30 transition-colors group">
+                                        <td className="px-8 py-6 whitespace-nowrap">
+                                            <div className="flex items-center space-x-4">
+                                                <div className="w-10 h-10 bg-primary/5 text-primary rounded-xl flex items-center justify-center font-black text-xs">
+                                                    {stu.name[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-gray-800 leading-none mb-1">{stu.name}</p>
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ID: {stu.id}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-6 whitespace-nowrap">
+                                            <span className="text-sm font-bold text-gray-700">{stu.grade}</span>
+                                        </td>
+                                        <td className="px-8 py-6 whitespace-nowrap">
+                                            <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                                stu.status === 'Approved' ? 'bg-green-100 text-green-600' : 
+                                                stu.status === 'Pending' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'
+                                            }`}>
+                                                {stu.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-8 py-6 whitespace-nowrap text-right">
+                                            <button 
+                                                onClick={() => handleStatusToggle(stu)}
+                                                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center space-x-2 ml-auto ${
+                                                    stu.status === 'Approved' 
+                                                    ? 'bg-red-500 text-white shadow-red-100' 
+                                                    : 'bg-green-500 text-white shadow-green-100'
+                                                }`}
+                                            >
+                                                {stu.status === 'Approved' ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
+                                                <span>{stu.status === 'Approved' ? 'Reject Access' : 'Approve Payment'}</span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="4" className="px-8 py-12 text-center">
+                                        <div className="flex flex-col items-center">
+                                            <CreditCard className="text-gray-200 mb-4" size={48} />
+                                            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No students found matching your search</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ClassContent = () => {
+    const defaultClasses = [
+        { id: 1, grade: 'Grade 11', type: 'Theory', lesson: 'Quadratic Equations', time: 'Monday 08:00 AM', zoom: 'https://zoom.us/j/845213697', status: 'Offline' },
+        { id: 2, grade: 'Grade 10', type: 'Revision', lesson: 'Trigonometry', time: 'Tuesday 02:30 PM', zoom: 'https://zoom.us/j/992147321', status: 'Offline' },
+    ];
+
+    const [classes, setClasses] = useState(() => {
+        const saved = localStorage.getItem('class_schedules');
+        return saved ? JSON.parse(saved) : defaultClasses;
+    });
+
+    const [isAdding, setIsAdding] = useState(false);
+    const [editingId, setEditingId] = useState(null);
+    const [newClass, setNewClass] = useState({ grade: 'Grade 11', type: 'Theory', lesson: '', time: '', zoom: '' });
+
+    const saveClasses = (updated) => {
+        setClasses(updated);
+        localStorage.setItem('class_schedules', JSON.stringify(updated));
+        window.dispatchEvent(new Event('storage'));
+    };
+
+    const handleAdd = () => {
+        const id = Date.now();
+        saveClasses([...classes, { ...newClass, id, status: 'Offline' }]);
+        setIsAdding(false);
+        setNewClass({ grade: 'Grade 11', type: 'Theory', lesson: '', time: '', zoom: '' });
+    };
+
+    const handleDelete = (id) => {
+        saveClasses(classes.filter(c => c.id !== id));
+    };
+
+    const handleToggleStatus = (id) => {
+        saveClasses(classes.map(c => 
+            c.id === id ? { ...c, status: c.status === 'Live' ? 'Offline' : 'Live' } : c
+        ));
+    };
+
+    const handleUpdateZoom = (id, newZoom) => {
+        saveClasses(classes.map(c => 
+            c.id === id ? { ...c, zoom: newZoom } : c
+        ));
+    };
+
+    return (
+        <div className="space-y-8">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h3 className="text-lg font-black text-gray-800 leading-none mb-1">Class Schedules</h3>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Manage zoom links and lesson timings</p>
+                </div>
+                <button 
+                    onClick={() => setIsAdding(true)}
+                    className="bg-primary hover:bg-secondary text-white px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 flex items-center space-x-2"
+                >
+                    <Plus size={20} />
+                    <span>Add Schedule</span>
                 </button>
             </div>
-        </div>
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50/50 border-b border-gray-100">
-                        <tr>
-                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Student Info</th>
-                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Class/Grade</th>
-                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Payment Status</th>
-                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Progress</th>
-                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {[
-                            { id: 'STU-2026-001', name: 'Kavindu Lakshitha', grade: 'Grade 11', school: 'Royal College', status: 'Paid', progress: 85 },
-                            { id: 'STU-2026-002', name: 'Nimali Perera', grade: 'Grade 11', school: 'Visakha Vidyalaya', status: 'Pending', progress: 72 },
-                            { id: 'STU-2026-003', name: 'Amila Silva', grade: 'Grade 10', school: 'Ananda College', status: 'Unpaid', progress: 94 },
-                        ].map((stu, i) => (
-                            <tr key={stu.id} className="hover:bg-gray-50/30 transition-colors group">
-                                <td className="px-8 py-6">
-                                    <div className="flex items-center space-x-4">
-                                        <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 font-black text-xs">
-                                            {stu.name[0]}
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-black text-gray-800 leading-none mb-1">{stu.name}</p>
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ID: {stu.id}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-8 py-6">
-                                    <p className="text-sm font-bold text-gray-700 leading-none mb-1">{stu.grade}</p>
-                                    <p className="text-[10px] text-gray-400 font-bold leading-none">{stu.school}</p>
-                                </td>
-                                <td className="px-8 py-6">
-                                    <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                        stu.status === 'Paid' ? 'bg-green-100 text-green-600' : 
-                                        stu.status === 'Pending' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'
-                                    }`}>
-                                        {stu.status}
-                                    </span>
-                                </td>
-                                <td className="px-8 py-6">
-                                    <div className="w-24 bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                                        <div className="bg-primary h-full rounded-full" style={{ width: `${stu.progress}%` }}></div>
-                                    </div>
-                                </td>
-                                <td className="px-8 py-6 text-right">
-                                    <div className="flex items-center justify-end space-x-2">
-                                        <button className="p-2 text-gray-400 hover:text-secondary hover:bg-secondary/5 rounded-lg transition-all"><Edit2 size={16} /></button>
-                                        <button className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={16} /></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-);
-const PaymentContent = () => (
-    <div className="space-y-8">
-        <div className="flex justify-between items-center">
-            <div>
-                <h3 className="text-lg font-black text-gray-800 leading-none mb-1">Payment Approvals</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Verify and approve student tuition receipts</p>
-            </div>
-            <span className="bg-primary/10 text-primary px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest">4 New Requests</span>
-        </div>
-        
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Student Details</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Class</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Proof of Payment</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Submission Date</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {[
-                            { name: 'Heshan Maduvantha', id: 'STU-2026-102', class: 'Grade 11 - Theory', date: 'Mar 15, 2026' },
-                            { name: 'Dilshan Perera', id: 'STU-2026-045', class: 'Grade 10 - Revision', date: 'Mar 14, 2026' },
-                            { name: 'Sanduni Malshani', id: 'STU-2026-213', class: 'Grade 09 - Theory', date: 'Mar 14, 2026' },
-                        ].map((req, i) => (
-                            <tr key={i} className="hover:bg-gray-50/50 transition-colors">
-                                <td className="px-8 py-6 whitespace-nowrap">
-                                    <div className="flex items-center space-x-4">
-                                        <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 font-black text-xs">
-                                            {req.name[0]}
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-black text-gray-800 leading-none mb-1">{req.name}</p>
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ID: {req.id}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-8 py-6 whitespace-nowrap">
-                                    <span className="text-sm font-bold text-gray-700">{req.class}</span>
-                                </td>
-                                <td className="px-8 py-6 whitespace-nowrap">
-                                    <button className="text-primary text-[10px] font-black uppercase tracking-widest bg-primary/5 px-4 py-2 rounded-xl hover:bg-primary hover:text-white transition-all">
-                                        View Image
-                                    </button>
-                                </td>
-                                <td className="px-8 py-6 whitespace-nowrap text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                    {req.date}
-                                </td>
-                                <td className="px-8 py-6 whitespace-nowrap text-right space-x-3 text-[10px] font-black uppercase tracking-widest leading-none">
-                                    <button className="px-4 py-2.5 bg-green-500 text-white rounded-xl hover:bg-green-600 shadow-md transition-all inline-flex items-center space-x-2">
-                                        <CheckCircle2 size={14} />
-                                        <span>Approve</span>
-                                    </button>
-                                    <button className="px-4 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-md transition-all inline-flex items-center space-x-2">
-                                        <XCircle size={14} />
-                                        <span>Reject</span>
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-);
-
-const ClassContent = () => (
-    <div className="space-y-8">
-        <div className="flex justify-between items-center">
-            <div>
-                <h3 className="text-lg font-black text-gray-800 leading-none mb-1">Class Schedules</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Manage zoom links and lesson timings</p>
-            </div>
-            <button className="bg-primary hover:bg-secondary text-white px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 flex items-center space-x-2">
-                <Plus size={20} />
-                <span>Add Schedule</span>
-            </button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {[
-                { grade: 'Grade 11 - Theory', lesson: 'Quadratic Equations', time: 'Monday 08:00 AM', zoom: 'https://zoom.us/j/845213697', status: 'Live' },
-                { grade: 'Grade 10 - Revision', lesson: 'Trigonometry', time: 'Tuesday 02:30 PM', zoom: 'https://zoom.us/j/992147321', status: 'Offline' },
-            ].map((cls, i) => (
-                <div key={i} className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100 relative group overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700"></div>
-                    <div className="relative z-10 space-y-6">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest mb-4 inline-block ${
-                                    cls.status === 'Live' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
-                                }`}>
-                                    {cls.status === 'Live' ? '🔴 Live Start' : '⚪ Offline'}
-                                </span>
-                                <h4 className="text-xl font-black text-gray-800 tracking-tight leading-none mb-2">{cls.grade}</h4>
-                                <p className="text-sm font-bold text-gray-400">{cls.lesson}</p>
-                            </div>
-                            <div className="bg-white shadow-2xl shadow-gray-200 border border-gray-100 p-5 rounded-3xl text-center min-w-[100px]">
-                                <Clock className="mx-auto mb-2 text-primary" size={20} />
-                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Starts At</p>
-                                <p className="text-xs font-black text-gray-800 mt-1">{cls.time}</p>
-                            </div>
+            {isAdding && (
+                <div className="bg-white p-8 rounded-[40px] shadow-xl border border-primary/20 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Grade</label>
+                            <select 
+                                value={newClass.grade}
+                                onChange={(e) => setNewClass({...newClass, grade: e.target.value})}
+                                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none"
+                            >
+                                {[6,7,8,9,10,11].map(g => <option key={g}>Grade {g}</option>)}
+                            </select>
                         </div>
-                        
-                        <div className="pt-6 border-t border-gray-50 space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Zoom Meeting Link</label>
-                                <div className="flex space-x-2">
-                                    <input 
-                                        type="text" 
-                                        className="flex-1 bg-gray-50/50 border border-gray-100 rounded-2xl p-4 text-xs font-bold text-gray-700 outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all shadow-inner"
-                                        defaultValue={cls.zoom}
-                                    />
-                                    <button className="bg-primary text-white p-4 rounded-2xl shadow-lg hover:bg-secondary transition-all">
-                                        <Save size={20} />
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Type</label>
+                            <select 
+                                value={newClass.type}
+                                onChange={(e) => setNewClass({...newClass, type: e.target.value})}
+                                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none"
+                            >
+                                <option>Theory</option>
+                                <option>Revision</option>
+                                <option>Paper Class</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Time (e.g. Sat 8:00 AM)</label>
+                            <input 
+                                type="text"
+                                value={newClass.time}
+                                onChange={(e) => setNewClass({...newClass, time: e.target.value})}
+                                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none"
+                                placeholder="Sat 8:00 AM"
+                            />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Lesson Name</label>
+                            <input 
+                                type="text"
+                                value={newClass.lesson}
+                                onChange={(e) => setNewClass({...newClass, lesson: e.target.value})}
+                                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none"
+                                placeholder="Quadratic Equations"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Zoom Link</label>
+                            <input 
+                                type="text"
+                                value={newClass.zoom}
+                                onChange={(e) => setNewClass({...newClass, zoom: e.target.value})}
+                                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none"
+                                placeholder="https://zoom.us/j/..."
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-end space-x-4">
+                        <button onClick={() => setIsAdding(false)} className="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-gray-400 hover:text-gray-600 transition-all">Cancel</button>
+                        <button onClick={handleAdd} className="bg-primary text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-secondary transition-all">Save Schedule</button>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {classes.map((cls) => (
+                    <div key={cls.id} className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100 relative group overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700"></div>
+                        <div className="relative z-10 space-y-6">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest mb-4 inline-block ${
+                                        cls.status === 'Live' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+                                    }`}>
+                                        {cls.status === 'Live' ? '🔴 Live now' : '⚪ Offline'}
+                                    </span>
+                                    <h4 className="text-xl font-black text-gray-800 tracking-tight leading-none mb-2">{cls.grade} - {cls.type}</h4>
+                                    <p className="text-sm font-bold text-gray-400">{cls.lesson}</p>
+                                </div>
+                                <div className="bg-white shadow-2xl shadow-gray-200 border border-gray-100 p-5 rounded-3xl text-center min-w-[100px]">
+                                    <Clock className="mx-auto mb-2 text-primary" size={20} />
+                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Time</p>
+                                    <p className="text-xs font-black text-gray-800 mt-1">{cls.time}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="pt-6 border-t border-gray-50 space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Zoom Meeting Link</label>
+                                    <div className="flex space-x-2">
+                                        <input 
+                                            type="text" 
+                                            className="flex-1 bg-gray-50/50 border border-gray-100 rounded-2xl p-4 text-xs font-bold text-gray-700 outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all shadow-inner"
+                                            defaultValue={cls.zoom}
+                                            onBlur={(e) => handleUpdateZoom(cls.id, e.target.value)}
+                                        />
+                                        <button className="bg-primary text-white p-4 rounded-2xl shadow-lg hover:bg-secondary transition-all">
+                                            <Save size={20} />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex space-x-3 pt-2">
+                                    <button 
+                                        onClick={() => handleToggleStatus(cls.id)}
+                                        className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md active:scale-95 ${
+                                        cls.status === 'Live' ? 'bg-red-500 text-white shadow-red-200 hover:bg-red-600' : 'bg-green-500 text-white shadow-green-200 hover:bg-green-600'
+                                    }`}>
+                                        {cls.status === 'Live' ? 'End Session' : 'Start Session'}
+                                    </button>
+                                    <button onClick={() => handleDelete(cls.id)} className="p-4 bg-gray-100 text-red-400 rounded-2xl hover:bg-red-50 transition-all">
+                                        <Trash2 size={20} />
                                     </button>
                                 </div>
                             </div>
-                            <div className="flex space-x-3 pt-2">
-                                <button className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md ${
-                                    cls.status === 'Live' ? 'bg-red-500 text-white shadow-red-200 hover:bg-red-600' : 'bg-green-500 text-white shadow-green-200 hover:bg-green-600'
-                                }`}>
-                                    {cls.status === 'Live' ? 'End Session' : 'Start Session'}
-                                </button>
-                                <button className="p-4 bg-gray-100 text-gray-400 rounded-2xl hover:bg-gray-200 transition-all">
-                                    <Edit2 size={20} />
-                                </button>
-                            </div>
                         </div>
                     </div>
-                </div>
-            ))}
-        </div>
-    </div>
-);
-
-const MarksContent = () => (
-    <div className="space-y-8">
-        <div className="flex justify-between items-center">
-            <div>
-                <h3 className="text-lg font-black text-gray-800 leading-none mb-1">Monthly Exam Marks</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Update results for grades 6 - 11</p>
+                ))}
             </div>
         </div>
+    );
+};
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Select Grade</p>
-                <select className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none custom-scrollbar">
-                    {[6,7,8,9,10,11].map(g => <option key={g} selected={g===11}>Grade {g}</option>)}
-                </select>
-            </div>
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Select Month</p>
-                <select className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none">
-                    {['January', 'February', 'March', 'April'].map(m => <option key={m} selected={m==='March'}>{m}</option>)}
-                </select>
-            </div>
-            <div className="flex items-end">
-                <button className="bg-primary hover:bg-secondary text-white w-full py-5 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-[0.98] flex items-center justify-center space-x-3">
-                    <Plus size={20} />
-                    <span>Enter Marks</span>
-                </button>
-            </div>
-        </div>
+const MarksContent = ({ students }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedGrade, setSelectedGrade] = useState('Grade 11');
+    const marksStudents = students.filter(s => 
+        s.grade === selectedGrade && 
+        (s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.id.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-             <div className="p-8 border-b border-gray-50 bg-gray-50/30 flex justify-between items-center">
-                 <h4 className="font-black text-gray-800 tracking-tight">Grade 11 - March Exam</h4>
-                 <div className="flex space-x-3">
-                     <button className="px-5 py-2.5 bg-white border border-gray-200 text-gray-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all">Bulk Upload</button>
-                     <button className="px-5 py-2.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/10">Save All</button>
-                 </div>
-             </div>
-             <table className="w-full text-left">
-                <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
-                    <tr>
-                        <th className="px-8 py-5">Student ID</th>
-                        <th className="px-8 py-5">Student Name</th>
-                        <th className="px-8 py-5 w-40">Marks (%)</th>
-                        <th className="px-8 py-5 text-right">Action</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                    {[
-                        { id: 'STU-11-204', name: 'Ishara Sewwandi' },
-                        { id: 'STU-11-205', name: 'Pathum Nissanka' },
-                        { id: 'STU-11-206', name: 'Mahesh Thambuttu' },
-                    ].map((stu, i) => (
-                        <tr key={stu.id} className="group">
-                            <td className="px-8 py-5 text-sm font-black text-gray-400">{stu.id}</td>
-                            <td className="px-8 py-5 text-sm font-black text-gray-800">{stu.name}</td>
-                            <td className="px-8 py-5">
-                                <input type="number" className="w-24 bg-gray-50 border border-gray-100 rounded-xl p-3 text-center text-sm font-black text-primary focus:ring-4 focus:ring-primary/5 outline-none" placeholder="00" />
-                            </td>
-                            <td className="px-8 py-5 text-right">
-                                <button className="p-2 text-gray-300 hover:text-green-500 transition-colors"><Save size={18} /></button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-             </table>
-        </div>
-    </div>
-);
-
-const HomeworkContent = () => (
-    <div className="space-y-8">
-        <div className="flex justify-between items-center">
-            <div>
-                <h3 className="text-lg font-black text-gray-800 leading-none mb-1">Weekly Homework Grades</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Assign A, B, C, S or W grades</p>
-            </div>
-        </div>
-
-        <div className="bg-white p-12 rounded-[50px] shadow-xl shadow-gray-200/50 border border-gray-100 text-center relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-            <div className="relative z-10 max-w-2xl mx-auto space-y-10">
-                <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
-                    <FileSpreadsheet className="text-primary" size={32} />
-                </div>
+    return (
+        <div className="space-y-8">
+            <div className="flex justify-between items-center">
                 <div>
-                    <h3 className="text-2xl font-black text-gray-800 tracking-tight">Select Target Group</h3>
-                    <p className="text-gray-400 font-bold text-sm mt-2">Pick the specific week and grade to start marking homework.</p>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
-                    <select className="w-full sm:w-auto min-w-[180px] bg-gray-50 border border-gray-100 rounded-2xl p-5 font-black text-xs uppercase tracking-widest outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all">
-                        {['Week 01', 'Week 02', 'Week 03', 'Week 04'].map(w => <option key={w}>{w}</option>)}
-                    </select>
-                    <select className="w-full sm:w-auto min-w-[180px] bg-gray-50 border border-gray-100 rounded-2xl p-5 font-black text-xs uppercase tracking-widest outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all">
-                        {['Grade 11', 'Grade 10', 'Grade 09', 'Grade 08'].map(g => <option key={g}>{g}</option>)}
-                    </select>
-                    <button className="w-full sm:w-auto bg-primary hover:bg-secondary text-white px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-primary/20 transition-all active:scale-95">Load Student List</button>
-                </div>
-
-                <div className="grid grid-cols-5 gap-3 max-w-md mx-auto pt-6">
-                    {['A','B','C','S','W'].map(g => (
-                        <div key={g} className="bg-gray-50 p-4 rounded-2xl flex flex-col items-center border border-gray-100">
-                            <span className="text-lg font-black text-gray-800 leading-none">{g}</span>
-                            <span className="text-[8px] text-gray-400 font-bold uppercase mt-1">Grade</span>
-                        </div>
-                    ))}
+                    <h3 className="text-lg font-black text-gray-800 leading-none mb-1">Monthly Exam Marks</h3>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Update results for grades 6 - 11</p>
                 </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Select Grade</p>
+                    <select 
+                        value={selectedGrade}
+                        onChange={(e) => setSelectedGrade(e.target.value)}
+                        className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none custom-scrollbar"
+                    >
+                        {['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11'].map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                </div>
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Select Month</p>
+                    <select className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none">
+                        {['January', 'February', 'March', 'April'].map(m => <option key={m} selected={m==='March'}>{m}</option>)}
+                    </select>
+                </div>
+                <div className="flex items-end">
+                    <button className="bg-primary hover:bg-secondary text-white w-full py-5 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-[0.98] flex items-center justify-center space-x-3">
+                        <Plus size={20} />
+                        <span>Enter Marks</span>
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-8 border-b border-gray-50 bg-gray-50/30 flex justify-between items-center">
+                    <h4 className="font-black text-gray-800 tracking-tight">Grade 11 - March Exam</h4>
+                    <div className="flex space-x-3">
+                        <button className="px-5 py-2.5 bg-white border border-gray-200 text-gray-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all">Bulk Upload</button>
+                        <button className="px-5 py-2.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/10">Save All</button>
+                    </div>
+                </div>
+                <table className="w-full text-left">
+                    <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                        <tr>
+                            <th className="px-8 py-5">Student ID</th>
+                            <th className="px-8 py-5">Student Name</th>
+                            <th className="px-8 py-5 w-40">Marks (%)</th>
+                            <th className="px-8 py-5 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                        {marksStudents.length > 0 ? (
+                            marksStudents.map((stu, i) => (
+                                <tr key={stu.id} className="group">
+                                    <td className="px-8 py-5 text-sm font-black text-gray-400">{stu.id}</td>
+                                    <td className="px-8 py-5 text-sm font-black text-gray-800">{stu.name}</td>
+                                    <td className="px-8 py-5">
+                                        <input type="number" className="w-24 bg-gray-50 border border-gray-100 rounded-xl p-3 text-center text-sm font-black text-primary focus:ring-4 focus:ring-primary/5 outline-none" placeholder="00" />
+                                    </td>
+                                    <td className="px-8 py-5 text-right">
+                                        <button className="p-2 text-gray-300 hover:text-green-500 transition-colors"><Save size={18} /></button>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="4" className="px-8 py-12 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">No students found</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-);
+    );
+};
+
+const HomeworkContent = ({ students }) => {
+    const [selectedWeek, setSelectedWeek] = useState('Week 01');
+    const [selectedGrade, setSelectedGrade] = useState('Grade 11');
+    const [homeworkStudents, setHomeworkStudents] = useState([]);
+
+    const handleLoadList = () => {
+        const filtered = students.filter(s => s.grade === selectedGrade);
+        setHomeworkStudents(filtered);
+    };
+
+    return (
+        <div className="space-y-8">
+            <div className="bg-white rounded-[40px] p-12 shadow-sm border border-gray-100 relative overflow-hidden">
+                <div className="relative z-10 flex flex-col items-center text-center space-y-8">
+                    <div className="w-20 h-20 bg-primary/10 rounded-[30px] flex items-center justify-center mb-2">
+                        <FileSpreadsheet className="text-primary" size={32} />
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black text-gray-800 tracking-tight">Select Target Group</h3>
+                        <p className="text-gray-400 font-bold text-sm mt-2">Pick the specific week and grade to start marking homework.</p>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+                        <select 
+                            value={selectedWeek}
+                            onChange={(e) => setSelectedWeek(e.target.value)}
+                            className="w-full sm:w-auto min-w-[180px] bg-gray-50 border border-gray-100 rounded-2xl p-5 font-black text-xs uppercase tracking-widest outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all"
+                        >
+                            {['Week 01', 'Week 02', 'Week 03', 'Week 04'].map(w => <option key={w} value={w}>{w}</option>)}
+                        </select>
+                        <select 
+                            value={selectedGrade}
+                            onChange={(e) => setSelectedGrade(e.target.value)}
+                            className="w-full sm:w-auto min-w-[180px] bg-gray-50 border border-gray-100 rounded-2xl p-5 font-black text-xs uppercase tracking-widest outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all"
+                        >
+                            {['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11'].map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                        <button 
+                            onClick={handleLoadList}
+                            className="w-full sm:w-auto bg-primary hover:bg-secondary text-white px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-primary/20 transition-all active:scale-95"
+                        >
+                            Load Student List
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-3 max-w-md mx-auto pt-6">
+                        {['A','B','C','S','W'].map(g => (
+                            <div key={g} className="bg-gray-50 p-4 rounded-2xl flex flex-col items-center border border-gray-100">
+                                <span className="text-lg font-black text-gray-800 leading-none">{g}</span>
+                                <span className="text-[8px] text-gray-400 font-bold uppercase mt-1">Grade</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {homeworkStudents.length > 0 && (
+                <div className="bg-white rounded-[40px] border border-gray-100 overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="p-8 border-b border-gray-50 flex justify-between items-center">
+                        <h4 className="font-black text-gray-800 text-lg uppercase tracking-tight">{selectedGrade} - {selectedWeek} Students</h4>
+                        <span className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black">{homeworkStudents.length} Students</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                <tr>
+                                    <th className="px-8 py-5">Student</th>
+                                    <th className="px-8 py-5 text-center">Grade (A-W)</th>
+                                    <th className="px-8 py-5 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {homeworkStudents.map((stu) => (
+                                    <tr key={stu.id} className="group hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-8 py-5">
+                                            <p className="text-sm font-black text-gray-800 leading-none mb-1">{stu.name}</p>
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{stu.id}</p>
+                                        </td>
+                                        <td className="px-8 py-5">
+                                            <div className="flex justify-center gap-2">
+                                                {['A','B','C','S','W'].map(grade => (
+                                                    <button key={grade} className="w-8 h-8 rounded-lg border border-gray-100 text-[10px] font-black hover:bg-primary hover:text-white transition-all">
+                                                        {grade}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-5 text-right">
+                                            <button className="text-primary text-[10px] font-black uppercase tracking-widest hover:underline">Submit</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const RecordingContent = () => (
     <div className="space-y-8">

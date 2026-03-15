@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Lock, Youtube, Facebook, Phone, ArrowLeft, School, MapPin, GraduationCap, Heart } from 'lucide-react';
+import { User, Lock, Youtube, Facebook, Phone, ArrowLeft, School, MapPin, GraduationCap, Heart, ChevronRight } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import logo from '../assets/logo1.png';
 
@@ -47,8 +47,10 @@ const Login = () => {
         e.preventDefault();
         
         if (isRegister) {
-            const { studentPhone, ...requiredData } = formData;
-            const emptyFields = Object.keys(requiredData).filter(key => !requiredData[key]);
+            // Define required fields for registration (excluding internal/optional fields)
+            const requiredFields = ['name', 'grade', 'school', 'parentPhone', 'district', 'email', 'password'];
+            const emptyFields = requiredFields.filter(key => !formData[key]);
+            
             if (emptyFields.length > 0) {
                 alert('කරුණාකර සියලුම තොරතුරු නිවැරදිව පූරණය කරන්න (Please fill all fields)');
                 return;
@@ -60,6 +62,25 @@ const Login = () => {
             }
 
             const newId = generateStudentId();
+            
+            // Persist new student to all_students list for Admin Portal
+            const allStudents = JSON.parse(localStorage.getItem('all_students') || '[]');
+            const newStudent = {
+                id: newId,
+                name: formData.name,
+                grade: formData.grade,
+                school: formData.school,
+                email: formData.email,
+                studentPhone: formData.studentPhone,
+                parentPhone: formData.parentPhone,
+                district: formData.district,
+                status: 'Unpaid',
+                progress: 0,
+                joinedAt: new Date().toISOString()
+            };
+            
+            localStorage.setItem('all_students', JSON.stringify([...allStudents, newStudent]));
+            
             setGeneratedId(newId);
             setShowSuccess(true);
         } else if (isForgotId) {
@@ -89,7 +110,28 @@ const Login = () => {
             if (isAdmin) {
                 navigate('/admin');
             } else {
-                console.log('Logging in student:', formData);
+                // Determine student data (in a real app, this comes from DB)
+                const studentData = {
+                    name: formData.name || "Kavindu Lakshitha",
+                    id: formData.studentId || "STU-2026-001",
+                    grade: formData.grade || "Grade 11",
+                    school: formData.school || "Royal College",
+                    email: formData.email || "kavindu@example.com",
+                    studentPhone: formData.studentPhone || "0771234567",
+                    parentPhone: formData.parentPhone || "0712345678",
+                    district: formData.district || "Colombo",
+                    paymentStatus: "Pending" // Initial status for new/mock logins
+                };
+
+                // Check if this student already has a status in "all_students"
+                const allStudents = JSON.parse(localStorage.getItem('all_students') || '[]');
+                const existing = allStudents.find(s => s.id === studentData.id);
+                if (existing) {
+                    studentData.paymentStatus = existing.status;
+                }
+
+                localStorage.setItem('current_student', JSON.stringify(studentData));
+                console.log('Logging in student:', studentData);
                 navigate('/student-dashboard');
             }
         }
@@ -191,16 +233,21 @@ const Login = () => {
                                             placeholder="Student Name / සම්පූර්ණ නම"
                                         />
                                     </div>
-                                    <div className="relative">
-                                        <GraduationCap className="absolute left-0 bottom-3 text-gray-400" size={18} />
-                                        <input
-                                            type="text"
+                                    <div className="relative group">
+                                        <GraduationCap className="absolute left-0 bottom-3 text-gray-400 group-focus-within:text-secondary transition-colors" size={18} />
+                                        <select
                                             name="grade"
                                             required
                                             onChange={handleChange}
-                                            className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
-                                            placeholder="Grade / ශ්‍රේණිය"
-                                        />
+                                            className="w-full border-b border-gray-300 py-2 pl-7 pr-8 text-sm text-gray-800 focus:border-secondary outline-none transition-colors bg-transparent appearance-none relative z-10"
+                                            defaultValue=""
+                                        >
+                                            <option value="" disabled>Grade / ශ්‍රේණිය</option>
+                                            {['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11'].map(g => (
+                                                <option key={g} value={g}>{g}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronRight className="absolute right-0 bottom-3 text-gray-400 rotate-90 pointer-events-none" size={16} />
                                     </div>
                                     <div className="relative md:col-span-2">
                                         <School className="absolute left-0 bottom-3 text-gray-400" size={18} />
