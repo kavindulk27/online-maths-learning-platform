@@ -1,24 +1,29 @@
 import { motion } from 'framer-motion';
 import { Award, Users, BookOpen, Heart } from 'lucide-react';
+import profileImg from '../assets/profile.jpeg';
 
 const About = () => {
     return (
-        <section id="about" className="py-24 bg-slate-900 text-white overflow-hidden">
+        <section id="about" className="py-16 md:py-24 bg-slate-900 text-white overflow-hidden">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid md:grid-cols-2 gap-16 items-center">
+                <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
                     <motion.div
                         initial={{ opacity: 0, x: -50 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         className="relative"
                     >
-                        <div className="relative z-10 rounded-[2.5rem] overflow-hidden border-8 border-white/5 shadow-2xl">
-                            <div className="bg-gradient-to-br from-slate-800 to-slate-900 w-full aspect-[4/5] flex items-center justify-center">
-                                <BookOpen size={100} className="text-primary/10" />
-                            </div>
+                        <div className="relative z-10 rounded-[2.5rem] overflow-hidden border-8 border-white/10 shadow-[0_0_50px_-12px_rgba(37,99,235,0.3)] group">
+                            <img 
+                                src={profileImg} 
+                                alt="Teacher Profile" 
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                style={{ imageRendering: 'auto' }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                         </div>
 
-                        <div className="absolute -bottom-10 -right-10 glass-card p-10 rounded-[2rem] z-20 hidden lg:block border-blue-500/20 bg-white">
+                        <div className="absolute -bottom-8 -right-8 md:-bottom-10 md:-right-10 glass-card p-6 md:p-10 rounded-[1.5rem] md:rounded-[2rem] z-20 hidden lg:block border-blue-500/20 bg-white">
                             <p className="text-5xl font-extrabold text-primary mb-1">10+</p>
                             <p className="text-slate-600 font-bold uppercase tracking-widest text-[10px]">Years Experience</p>
                         </div>
@@ -29,7 +34,7 @@ const About = () => {
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                     >
-                        <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                        <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6">
                             About the <span className="text-primary">Teacher</span>
                         </h2>
                         <p className="text-slate-400 text-lg mb-8 leading-relaxed">

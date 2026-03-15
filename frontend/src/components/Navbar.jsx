@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Menu, X, Rocket, GraduationCap, Phone, User, Home as HomeIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-
+import logo from '../assets/logo1.png';
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
@@ -27,24 +27,25 @@ const Navbar = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center">
-                        <Link to="/" className="flex items-center">
+                        <Link to="/" className="flex items-center group">
                             <motion.div
-                                initial={{ scale: 0.8, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
+                                whileHover={{ scale: 1.05, rotate: -2 }}
+                                whileTap={{ scale: 0.95 }}
                                 className="relative"
                             >
+                                <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full scale-150 group-hover:bg-secondary/30 transition-colors" />
                                 <img 
-                                    src="/logo.png" 
+                                    src={logo} 
                                     alt="My Maths Logo" 
-                                    className="h-12 w-auto object-contain"
+                                    className="h-14 w-auto object-contain relative z-10 drop-shadow-2xl"
                                 />
                             </motion.div>
-                            <div className="ml-3 flex flex-col">
-                                <span className={`text-xl font-bold tracking-tight leading-none ${scrolled ? 'text-dark' : 'text-white'}`}>
-                                    My<span className="text-secondary">Maths</span>
+                            <div className="ml-4 flex flex-col group-hover:translate-x-1 transition-transform">
+                                <span className={`text-2xl font-black tracking-tight leading-none ${scrolled ? 'text-dark' : 'text-white'}`}>
+                                    My<span className="text-secondary drop-shadow-[0_0_8px_rgba(0,116,217,0.3)]">Maths</span>
                                 </span>
-                                <span className={`text-[10px] font-bold uppercase tracking-widest ${scrolled ? 'text-secondary' : 'text-secondary'}`}>
-                                    Best Answer for Maths
+                                <span className={`text-[11px] font-black uppercase tracking-normal mt-1 drop-shadow-[0_0_5px_rgba(250,204,21,0.4)] ${scrolled ? 'text-secondary' : 'text-accent'}`}>
+                                    ගණිතයට හොඳම විසඳුම
                                 </span>
                             </div>
                         </Link>
