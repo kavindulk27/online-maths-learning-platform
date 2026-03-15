@@ -84,8 +84,14 @@ const Login = () => {
             setAuthMode('login');
         } else {
             // Handle login logic
-            console.log('Logging in:', formData);
-            navigate('/student-dashboard');
+            const isAdmin = formData.studentId === 'admin@mymaths.com' && formData.password === 'admin123';
+            
+            if (isAdmin) {
+                navigate('/admin');
+            } else {
+                console.log('Logging in student:', formData);
+                navigate('/student-dashboard');
+            }
         }
     };
 
@@ -127,7 +133,7 @@ const Login = () => {
                     </div>
 
                     <h2 className="text-3xl font-black text-gray-800 mb-8 self-start">
-                        {isLogin ? 'Sign In' : 
+                        {isLogin ? 'Sign In / ඇතුල් වන්න' : 
                          isRegister ? 'අලුතින් ලියාපදිංචි වන්න' : 
                          isForgotId ? 'Reset Password' : 'Set New Password'}
                     </h2>
@@ -150,7 +156,7 @@ const Login = () => {
                                             required
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors peer"
-                                            placeholder="Student ID / ශිෂ්‍ය අංකය"
+                                            placeholder="Student ID or Email"
                                         />
                                     </div>
 

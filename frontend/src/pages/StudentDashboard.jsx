@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     LayoutDashboard, 
@@ -24,7 +25,6 @@ import {
     Menu,
     X
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo1.png';
 
 const StudentDashboard = () => {

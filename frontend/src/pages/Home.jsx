@@ -1,5 +1,6 @@
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
+import Videos from '../components/Videos';
 import Classes from '../components/Classes';
 import About from '../components/About';
 import Contact from '../components/Contact';
@@ -10,6 +11,7 @@ const Home = () => {
         <div className="relative">
             <Navbar />
             <Hero />
+            <Videos />
             <div id="classes">
                 <Classes />
             </div>

@@ -77,12 +77,17 @@ const Hero = () => {
                                 <span className="relative z-10">Join Class Now</span>
                                 <ArrowRight size={20} className="relative z-10 group-hover:translate-x-1 transition-transform" />
                             </Link>
-                            <button className="flex items-center justify-center space-x-3 bg-white/5 hover:bg-white/10 text-white px-10 py-5 rounded-2xl font-black transition-all backdrop-blur-xl border border-white/20 hover:border-white/40 shadow-xl group">
+                            <a 
+                                href="https://youtube.com/@chamaravidunuvan?si=00GSZnzX6sSsMnSR"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center space-x-3 bg-white/5 hover:bg-white/10 text-white px-10 py-5 rounded-2xl font-black transition-all backdrop-blur-xl border border-white/20 hover:border-white/40 shadow-xl group"
+                            >
                                 <div className="p-1.5 bg-accent rounded-full text-dark group-hover:scale-110 transition-transform shadow-lg shadow-accent/20">
                                     <Play size={14} fill="currentColor" />
                                 </div>
                                 <span>Watch Preview</span>
-                            </button>
+                            </a>
                         </div>
 
                         <div className="mt-8 md:mt-16 grid grid-cols-3 gap-4 md:gap-8 py-6 md:py-8 border-t border-white/5">
