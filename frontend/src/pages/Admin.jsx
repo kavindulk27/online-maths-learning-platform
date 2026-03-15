@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import logo from '../assets/logo1.png';
 
 const Admin = () => {
     const [activeTab, setActiveTab] = useState('payments');
@@ -35,8 +36,8 @@ const Admin = () => {
             <aside className="w-64 bg-primary text-white flex flex-col shadow-2xl z-20">
                 <div className="p-6 border-b border-white/10">
                     <div className="flex items-center space-x-3">
-                        <div className="bg-white p-2 rounded-lg shadow-inner">
-                            <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+                        <div className="bg-white p-1 rounded-lg shadow-lg shadow-black/20">
+                            <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
                         </div>
                         <div>
                             <h1 className="font-bold text-lg leading-tight">Admin</h1>

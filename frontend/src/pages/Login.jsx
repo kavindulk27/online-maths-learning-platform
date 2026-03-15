@@ -1,8 +1,94 @@
-import { motion } from 'framer-motion';
-import { User, Lock, Youtube, Facebook, Phone, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Lock, Youtube, Facebook, Phone, ArrowLeft, School, MapPin, GraduationCap, Heart } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import logo from '../assets/logo1.png';
+
 const Login = () => {
+    const navigate = useNavigate();
+    const [authMode, setAuthMode] = useState('login'); // login, register, forgot-id, forgot-reset
+    const [formData, setFormData] = useState({
+        name: '',
+        studentId: '',
+        grade: '',
+        school: '',
+        studentPhone: '',
+        parentPhone: '',
+        district: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+    });
+
+    const isLogin = authMode === 'login';
+    const isRegister = authMode === 'register';
+    const isForgotId = authMode === 'forgot-id';
+    const isForgotReset = authMode === 'forgot-reset';
+
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [generatedId, setGeneratedId] = useState('');
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const generateStudentId = () => {
+        const year = new Date().getFullYear();
+        const lastId = localStorage.getItem('last_student_number') || '0';
+        const nextNumber = parseInt(lastId) + 1;
+        localStorage.setItem('last_student_number', nextNumber.toString());
+        
+        // Pad with zeros to ensure 3 digits (e.g., 001, 002)
+        const paddedNumber = nextNumber.toString().padStart(3, '0');
+        return `STU-${year}-${paddedNumber}`;
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        
+        if (isRegister) {
+            const { studentPhone, ...requiredData } = formData;
+            const emptyFields = Object.keys(requiredData).filter(key => !requiredData[key]);
+            if (emptyFields.length > 0) {
+                alert('කරුණාකර සියලුම තොරතුරු නිවැරදිව පූරණය කරන්න (Please fill all fields)');
+                return;
+            }
+
+            if (formData.password.length < 8) {
+                alert('මුරපදය සඳහා අවම වශයෙන් අකුරු/ඉලක්කම් 8ක් ඇතුළත් කරන්න (Password must be at least 8 characters long)');
+                return;
+            }
+
+            const newId = generateStudentId();
+            setGeneratedId(newId);
+            setShowSuccess(true);
+        } else if (isForgotId) {
+            // Identity verification logic
+            if (!formData.studentId || !formData.parentPhone) {
+                alert('කරුණාකර ශිෂ්‍ය අංකය සහ මවුපියන්ගේ අංකය ඇතුළත් කරන්න');
+                return;
+            }
+            // Transition to reset step
+            setAuthMode('forgot-reset');
+        } else if (isForgotReset) {
+            // Reset logic
+            if (formData.password.length < 8) {
+                alert('මුරපදය සඳහා අවම වශයෙන් අකුරු/ඉලක්කම් 8ක් ඇතුළත් කරන්න');
+                return;
+            }
+            if (formData.password !== formData.confirmPassword) {
+                alert('මුරපදයන් එකිනෙකට නොගැලපේ (Passwords do not match)');
+                return;
+            }
+            alert('මුරපදය සාර්ථකව වෙනස් කළා! (Password Reset Successful)');
+            setAuthMode('login');
+        } else {
+            // Handle login logic
+            console.log('Logging in:', formData);
+            navigate('/student-dashboard');
+        }
+    };
+
     return (
         <div className="min-h-screen bg-primary flex items-center justify-center p-4 md:p-8 relative">
             {/* Back button */}
@@ -40,40 +126,256 @@ const Login = () => {
                         />
                     </div>
 
-                    <h2 className="text-3xl font-bold text-gray-800 mb-8 self-start">Sign In</h2>
+                    <h2 className="text-3xl font-black text-gray-800 mb-8 self-start">
+                        {isLogin ? 'Sign In' : 
+                         isRegister ? 'අලුතින් ලියාපදිංචි වන්න' : 
+                         isForgotId ? 'Reset Password' : 'Set New Password'}
+                    </h2>
 
-                    <form className="w-full space-y-6">
-                        <div className="relative">
-                            <User className="absolute left-0 bottom-4 text-gray-400" size={20} />
-                            <input
-                                type="text"
-                                className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors peer"
-                                placeholder="Student ID"
-                            />
-                        </div>
+                    <form className="w-full space-y-5" onSubmit={handleSubmit}>
+                        <AnimatePresence mode="wait">
+                            {isLogin ? (
+                                <motion.div
+                                    key="login-fields"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    className="space-y-6"
+                                >
+                                    <div className="relative">
+                                        <User className="absolute left-0 bottom-4 text-gray-400" size={20} />
+                                        <input
+                                            type="text"
+                                            name="studentId"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors peer"
+                                            placeholder="Student ID / ශිෂ්‍ය අංකය"
+                                        />
+                                    </div>
 
-                        <div className="relative">
-                            <Lock className="absolute left-0 bottom-4 text-gray-400" size={20} />
-                            <input
-                                type="password"
-                                className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors peer"
-                                placeholder="Password"
-                            />
-                        </div>
+                                    <div className="relative">
+                                        <Lock className="absolute left-0 bottom-4 text-gray-400" size={20} />
+                                        <input
+                                            type="password"
+                                            name="password"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors peer"
+                                            placeholder="Password / මුරපදය"
+                                        />
+                                    </div>
+                                </motion.div>
+                            ) : isRegister ? (
+                                <motion.div
+                                    key="register-fields"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4"
+                                >
+                                    <div className="relative">
+                                        <User className="absolute left-0 bottom-3 text-gray-400" size={18} />
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
+                                            placeholder="Student Name / සම්පූර්ණ නම"
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <GraduationCap className="absolute left-0 bottom-3 text-gray-400" size={18} />
+                                        <input
+                                            type="text"
+                                            name="grade"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
+                                            placeholder="Grade / ශ්‍රේණිය"
+                                        />
+                                    </div>
+                                    <div className="relative md:col-span-2">
+                                        <School className="absolute left-0 bottom-3 text-gray-400" size={18} />
+                                        <input
+                                            type="text"
+                                            name="school"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
+                                            placeholder="School / පාසල"
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <Phone className="absolute left-0 bottom-3 text-gray-400" size={18} />
+                                        <input
+                                            type="tel"
+                                            name="studentPhone"
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
+                                            placeholder="Student Phone (Optional) / ඔබේ දුරකථනය"
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <Heart className="absolute left-0 bottom-3 text-secondary" size={18} />
+                                        <input
+                                            type="tel"
+                                            name="parentPhone"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors font-bold"
+                                            placeholder="Parent Phone / මවුපියන්ගේ අංකය *"
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-0 bottom-3 text-gray-400" size={18} />
+                                        <select
+                                            name="district"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors bg-transparent appearance-none"
+                                            defaultValue=""
+                                        >
+                                            <option value="" disabled>District / දිස්ත්‍රික්කය</option>
+                                            {[
+                                                'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 
+                                                'Galle', 'Gampaha', 'Hambantota', 'Jaffna', 'Kalutara', 
+                                                'Kandy', 'Kegalle', 'Kilinochchi', 'Kurunegala', 'Mannar', 
+                                                'Matale', 'Matara', 'Moneragala', 'Mullaitivu', 'Nuwara Eliya', 
+                                                'Polonnaruwa', 'Puttalam', 'Ratnapura', 'Trincomalee', 'Vavuniya'
+                                            ].map(d => (
+                                                <option key={d} value={d}>{d}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="relative">
+                                        <Phone className="absolute left-0 bottom-3 text-gray-400" size={18} />
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
+                                            placeholder="Email / විද්‍යුත් තැපෑල"
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <Lock className="absolute left-0 bottom-3 text-gray-400" size={18} />
+                                        <input
+                                            type="password"
+                                            name="password"
+                                            required
+                                            minLength={8}
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
+                                            placeholder="Password (Min 8 chars) / මුරපදය"
+                                        />
+                                    </div>
+                                </motion.div>
+                            ) : isForgotId ? (
+                                <motion.div
+                                    key="forgot-id-fields"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    className="space-y-6"
+                                >
+                                    <p className="text-sm text-gray-500 mb-4">Identity Verification / අනන්‍යතාවය තහවුරු කරන්න</p>
+                                    <div className="relative">
+                                        <User className="absolute left-0 bottom-4 text-gray-400" size={20} />
+                                        <input
+                                            type="text"
+                                            name="studentId"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors"
+                                            placeholder="Student ID / ශිෂ්‍ය අංකය"
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <Heart className="absolute left-0 bottom-4 text-secondary" size={20} />
+                                        <input
+                                            type="tel"
+                                            name="parentPhone"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors"
+                                            placeholder="Parent Phone / මවුපියන්ගේ අංකය"
+                                        />
+                                    </div>
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="forgot-reset-fields"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    className="space-y-6"
+                                >
+                                    <p className="text-sm text-gray-500 mb-4">Set New Password / නව මුරපදයක් ඇතුළත් කරන්න</p>
+                                    <div className="relative">
+                                        <Lock className="absolute left-0 bottom-4 text-gray-400" size={20} />
+                                        <input
+                                            type="password"
+                                            name="password"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors"
+                                            placeholder="New Password / නව මුරපදය"
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <Lock className="absolute left-0 bottom-4 text-gray-400" size={20} />
+                                        <input
+                                            type="password"
+                                            name="confirmPassword"
+                                            required
+                                            onChange={handleChange}
+                                            className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors"
+                                            placeholder="Confirm Password / නැවත ඇතුළත් කරන්න"
+                                        />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
-                        <button className="w-full bg-primary hover:bg-secondary text-white py-4 rounded-lg font-bold transition-all shadow-md active:scale-[0.98]">
-                            Login
+                        <button 
+                            type="submit"
+                            className="w-full bg-primary hover:bg-secondary text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all shadow-lg active:scale-[0.98] mt-4"
+                        >
+                            {isLogin ? 'Login / ඇතුල් වන්න' : 
+                             isRegister ? 'Register / ලියාපදිංචි වන්න' : 
+                             isForgotId ? 'Verify Identity' : 'Reset & Save'}
                         </button>
                     </form>
 
-                    <div className="mt-6 flex flex-col items-start w-full space-y-4">
-                        <a href="#" className="text-sm font-medium text-gray-600 hover:text-secondary transition-colors underline underline-offset-4">
-                            Forgot Your Password?
-                        </a>
-
-                        <a href="#" className="w-full text-center py-2 px-4 border border-secondary text-secondary text-xs font-bold rounded-sm hover:bg-secondary/5 transition-colors">
-                            NOT A STUDENT? REGISTER NOW!
-                        </a>
+                    <div className="mt-8 flex flex-col items-center w-full space-y-4">
+                        {isLogin ? (
+                            <button 
+                                onClick={() => setAuthMode('register')}
+                                className="w-full text-center py-3 px-4 border-2 border-primary text-primary text-xs font-black rounded-xl hover:bg-primary hover:text-white transition-all uppercase tracking-widest"
+                            >
+                                Not a Student? Register Now!
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={() => setAuthMode('login')}
+                                className="text-sm font-bold text-gray-600 hover:text-primary transition-colors flex items-center space-x-2"
+                            >
+                                <ArrowLeft size={16} />
+                                <span>Back to Login / නැවත Login වෙත</span>
+                            </button>
+                        )}
+                        
+                        {isLogin && (
+                            <button 
+                                onClick={() => setAuthMode('forgot-id')}
+                                className="text-sm font-medium text-gray-400 hover:text-secondary transition-colors underline underline-offset-4"
+                            >
+                                Forgot Your Password?
+                            </button>
+                        )}
                     </div>
 
                     {/* Footer Infos */}
@@ -115,6 +417,53 @@ const Login = () => {
                     </div>
                 </div>
             </motion.div>
+
+            {/* Success Modal */}
+            <AnimatePresence>
+                {showSuccess && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            className="bg-white rounded-3xl p-8 md:p-12 max-w-md w-full text-center shadow-2xl relative overflow-hidden"
+                        >
+                            {/* Decorative Background */}
+                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary via-secondary to-primary"></div>
+                            
+                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <User className="text-green-600" size={40} />
+                            </div>
+                            
+                            <h3 className="text-2xl font-black text-gray-800 mb-2">ලියාපදිංචිය සාර්ථකයි!</h3>
+                            <p className="text-gray-500 text-sm mb-6">Registration Successful!</p>
+                            
+                            <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-6 mb-8">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">ඔබේ ශිෂ්‍ය අංකය (Student ID)</p>
+                                <p className="text-3xl font-black text-primary tracking-tighter">{generatedId}</p>
+                            </div>
+                            
+                            <p className="text-xs text-gray-400 mb-8 leading-relaxed">
+                                කරුණාකර මෙම අංකය මතක තබා ගන්න හෝ සුරැකිකව තබා ගන්න. පන්ති සඳහා පිවිසීමට මෙය අවශ්‍ය වේ.
+                            </p>
+                            
+                            <button
+                                onClick={() => {
+                                    setShowSuccess(false);
+                                    setAuthMode('login');
+                                }}
+                                className="w-full bg-primary hover:bg-secondary text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                            >
+                                ඇතුල් වන්න (Go to Login)
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
