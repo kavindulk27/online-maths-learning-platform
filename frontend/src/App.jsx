@@ -1,9 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Admin from './pages/Admin';
-import Pricing from './pages/Pricing';
-import StudentDashboard from './pages/StudentDashboard';
+import Home from './components/Home';
+import Login from './pages/auth/Login';
+import Admin from './pages/admin/Admin';
+import StudentDashboard from './pages/student/StudentDashboard';
 
 function App() {
   return (
@@ -12,7 +11,6 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admin" element={<Admin />} />
-        <Route path="/pricing" element={<Pricing />} />
         <Route path="/student-dashboard" element={<StudentDashboard />} />
       </Routes>
     </Router>

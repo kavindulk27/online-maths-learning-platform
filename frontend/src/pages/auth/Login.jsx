@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Lock, Youtube, Facebook, Phone, ArrowLeft, School, MapPin, GraduationCap, Heart, ChevronRight } from 'lucide-react';
+import { User, Lock, Youtube, Facebook, Phone, ArrowLeft, School, MapPin, GraduationCap, Heart, ChevronRight, Mail } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
-import logo from '../assets/logo1.png';
+import logo from '../../assets/logo1.png';
 
 const Login = () => {
     const navigate = useNavigate();
@@ -110,28 +110,28 @@ const Login = () => {
             if (isAdmin) {
                 navigate('/admin');
             } else {
-                // Determine student data (in a real app, this comes from DB)
-                const studentData = {
-                    name: formData.name || "Kavindu Lakshitha",
-                    id: formData.studentId || "STU-2026-001",
-                    grade: formData.grade || "Grade 11",
-                    school: formData.school || "Royal College",
-                    email: formData.email || "kavindu@example.com",
-                    studentPhone: formData.studentPhone || "0771234567",
-                    parentPhone: formData.parentPhone || "0712345678",
-                    district: formData.district || "Colombo",
-                    paymentStatus: "Pending" // Initial status for new/mock logins
-                };
-
-                // Check if this student already has a status in "all_students"
+                // Look up student from registered list
                 const allStudents = JSON.parse(localStorage.getItem('all_students') || '[]');
-                const existing = allStudents.find(s => s.id === studentData.id);
-                if (existing) {
-                    studentData.paymentStatus = existing.status;
+                const existing = allStudents.find(s => s.id === formData.studentId || s.email === formData.studentId);
+
+                if (!existing) {
+                    alert('ශිෂ්‍ය අංකය හෝ Email නිවැරදි නැත. කරුණාකර නැවත උත්සාහ කරන්න. (Student ID or Email not found. Please try again.)');
+                    return;
                 }
 
+                const studentData = {
+                    name: existing.name,
+                    id: existing.id,
+                    grade: existing.grade,
+                    school: existing.school,
+                    email: existing.email,
+                    studentPhone: existing.studentPhone || '',
+                    parentPhone: existing.parentPhone || '',
+                    district: existing.district || '',
+                    paymentStatus: existing.status || 'Unpaid'
+                };
+
                 localStorage.setItem('current_student', JSON.stringify(studentData));
-                console.log('Logging in student:', studentData);
                 navigate('/student-dashboard');
             }
         }
@@ -196,6 +196,7 @@ const Login = () => {
                                             type="text"
                                             name="studentId"
                                             required
+                                            value={formData.studentId}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors peer"
                                             placeholder="Student ID or Email"
@@ -208,6 +209,7 @@ const Login = () => {
                                             type="password"
                                             name="password"
                                             required
+                                            value={formData.password}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors peer"
                                             placeholder="Password / මුරපදය"
@@ -228,6 +230,7 @@ const Login = () => {
                                             type="text"
                                             name="name"
                                             required
+                                            value={formData.name}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
                                             placeholder="Student Name / සම්පූර්ණ නම"
@@ -238,9 +241,9 @@ const Login = () => {
                                         <select
                                             name="grade"
                                             required
+                                            value={formData.grade}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-2 pl-7 pr-8 text-sm text-gray-800 focus:border-secondary outline-none transition-colors bg-transparent appearance-none relative z-10"
-                                            defaultValue=""
                                         >
                                             <option value="" disabled>Grade / ශ්‍රේණිය</option>
                                             {['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11'].map(g => (
@@ -255,6 +258,7 @@ const Login = () => {
                                             type="text"
                                             name="school"
                                             required
+                                            value={formData.school}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
                                             placeholder="School / පාසල"
@@ -265,6 +269,7 @@ const Login = () => {
                                         <input
                                             type="tel"
                                             name="studentPhone"
+                                            value={formData.studentPhone}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
                                             placeholder="Student Phone (Optional) / ඔබේ දුරකථනය"
@@ -276,6 +281,7 @@ const Login = () => {
                                             type="tel"
                                             name="parentPhone"
                                             required
+                                            value={formData.parentPhone}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors font-bold"
                                             placeholder="Parent Phone / මවුපියන්ගේ අංකය *"
@@ -286,9 +292,9 @@ const Login = () => {
                                         <select
                                             name="district"
                                             required
+                                            value={formData.district}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors bg-transparent appearance-none"
-                                            defaultValue=""
                                         >
                                             <option value="" disabled>District / දිස්ත්‍රික්කය</option>
                                             {[
@@ -303,11 +309,12 @@ const Login = () => {
                                         </select>
                                     </div>
                                     <div className="relative">
-                                        <Phone className="absolute left-0 bottom-3 text-gray-400" size={18} />
+                                        <Mail className="absolute left-0 bottom-3 text-gray-400" size={18} />
                                         <input
                                             type="email"
                                             name="email"
                                             required
+                                            value={formData.email}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
                                             placeholder="Email / විද්‍යුත් තැපෑල"
@@ -320,6 +327,7 @@ const Login = () => {
                                             name="password"
                                             required
                                             minLength={8}
+                                            value={formData.password}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors"
                                             placeholder="Password (Min 8 chars) / මුරපදය"
@@ -341,6 +349,7 @@ const Login = () => {
                                             type="text"
                                             name="studentId"
                                             required
+                                            value={formData.studentId}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors"
                                             placeholder="Student ID / ශිෂ්‍ය අංකය"
@@ -352,6 +361,7 @@ const Login = () => {
                                             type="tel"
                                             name="parentPhone"
                                             required
+                                            value={formData.parentPhone}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors"
                                             placeholder="Parent Phone / මවුපියන්ගේ අංකය"
@@ -373,6 +383,7 @@ const Login = () => {
                                             type="password"
                                             name="password"
                                             required
+                                            value={formData.password}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors"
                                             placeholder="New Password / නව මුරපදය"
@@ -384,6 +395,7 @@ const Login = () => {
                                             type="password"
                                             name="confirmPassword"
                                             required
+                                            value={formData.confirmPassword}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors"
                                             placeholder="Confirm Password / නැවත ඇතුළත් කරන්න"

@@ -1,15 +1,45 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, Users } from 'lucide-react';
+import { ArrowRight, Users, CheckCircle } from 'lucide-react';
 import logo from '../assets/logo1.png';
 import { Link } from 'react-router-dom';
 
 const classes = [
-    { grade: '6', label: 'Grade 6', tagline: 'Foundation', color: 'from-blue-600 to-cyan-500', accent: '#0ea5e9', fee: 'Rs. 1,500' },
-    { grade: '7', label: 'Grade 7', tagline: 'Fundamentals', color: 'from-fuchsia-600 to-purple-500', accent: '#a855f7', fee: 'Rs. 1,500' },
-    { grade: '8', label: 'Grade 8', tagline: 'Core Concepts', color: 'from-orange-500 to-amber-400', accent: '#f59e0b', fee: 'Rs. 2,000' },
-    { grade: '9', label: 'Grade 9', tagline: 'Advanced Topics', color: 'from-emerald-600 to-teal-400', accent: '#10b981', fee: 'Rs. 2,000' },
-    { grade: '10', label: 'Grade 10', tagline: 'Exam Mastery', color: 'from-blue-700 to-indigo-500', accent: '#6366f1', fee: 'Rs. 2,500' },
-    { grade: '11', label: 'Grade 11', tagline: 'O/L Excellence', color: 'from-rose-600 to-pink-500', accent: '#f43f5e', fee: 'Rs. 2,500' },
+    {
+        grade: '6', label: 'Grade 6', tagline: 'Foundation',
+        color: 'from-blue-600 to-cyan-500', accent: '#0ea5e9',
+        fee: 'Rs. 1,500', feeNote: 'per month',
+        features: ['Weekly 4-Hour Sessions', 'Printed Study Modules', 'MCQ & Theory Practice'],
+    },
+    {
+        grade: '7', label: 'Grade 7', tagline: 'Fundamentals',
+        color: 'from-fuchsia-600 to-purple-500', accent: '#a855f7',
+        fee: 'Rs. 1,500', feeNote: 'per month',
+        features: ['Weekly 4-Hour Sessions', 'Printed Study Modules', 'MCQ & Theory Practice'],
+    },
+    {
+        grade: '8', label: 'Grade 8', tagline: 'Core Concepts',
+        color: 'from-orange-500 to-amber-400', accent: '#f59e0b',
+        fee: 'Rs. 2,000', feeNote: 'per month',
+        features: ['Weekly 4-Hour Sessions', 'Premium Study Modules', 'Past Paper Discussions'],
+    },
+    {
+        grade: '9', label: 'Grade 9', tagline: 'Advanced Topics',
+        color: 'from-emerald-600 to-teal-400', accent: '#10b981',
+        fee: 'Rs. 2,000', feeNote: 'per month',
+        features: ['Weekly 4-Hour Sessions', 'Premium Study Modules', 'Past Paper Discussions'],
+    },
+    {
+        grade: '10', label: 'Grade 10', tagline: 'Exam Mastery',
+        color: 'from-blue-700 to-indigo-500', accent: '#6366f1',
+        fee: 'Rs. 2,500', feeNote: 'per month',
+        features: ['Weekly 5-Hour Sessions', 'Exam-focused Modules', 'Mock Exams & Revision'],
+    },
+    {
+        grade: '11', label: 'Grade 11', tagline: 'O/L Excellence',
+        color: 'from-rose-600 to-pink-500', accent: '#f43f5e',
+        fee: 'Rs. 2,500', feeNote: 'per month',
+        features: ['Weekly 5-Hour Sessions', 'O/L Target Questions', 'Individual Attention'],
+    },
 ];
 
 const ClassCard = ({ cls, index }) => (
@@ -72,14 +102,26 @@ const ClassCard = ({ cls, index }) => (
             <h4 className="font-black text-slate-800 text-lg mb-1">{cls.label} — Mathematics</h4>
             <div className="h-px w-12 mb-4" style={{ backgroundColor: cls.accent }} />
 
-            {/* Students count */}
+            {/* Students count & Features */}
             <div className="flex items-center space-x-1.5 text-slate-400 text-sm mb-4">
                 <Users size={14} />
                 <span className="font-semibold">300+ Active Students</span>
             </div>
 
+            <ul className="space-y-2 mb-5">
+                {cls.features.map((f, i) => (
+                    <li key={i} className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
+                        <CheckCircle size={14} style={{ color: cls.accent }} className="flex-shrink-0" />
+                        <span>{f}</span>
+                    </li>
+                ))}
+            </ul>
+
             {/* Fee */}
-            <p className="text-2xl font-black mb-5" style={{ color: cls.accent }}>{cls.fee} <span className="text-sm text-slate-400 font-bold">/ month</span></p>
+            <div className="mt-auto">
+                <p className="text-2xl font-black mb-1" style={{ color: cls.accent }}>{cls.fee}</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-5">Per Month / සියලුම නිබන්ධන ඇතුළුව</p>
+            </div>
 
             {/* CTA */}
             <Link
