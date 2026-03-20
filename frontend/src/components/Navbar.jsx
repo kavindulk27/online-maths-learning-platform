@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Menu, X, Rocket, GraduationCap, Phone, User, Home as HomeIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import logo from '../assets/logo1.png';
+import logo from '../assets/logo.jpeg';
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
@@ -42,10 +42,10 @@ const Navbar = () => {
                             </motion.div>
                             <div className="ml-4 flex flex-col group-hover:translate-x-1 transition-transform">
                                 <span className={`text-2xl font-black tracking-tight leading-none ${scrolled ? 'text-dark' : 'text-white'}`}>
-                                    My<span className="text-secondary drop-shadow-[0_0_8px_rgba(0,116,217,0.3)]">Maths</span>
+                                    MYMATHS<span className="text-secondary drop-shadow-[0_0_8px_rgba(0,116,217,0.3)]">.LK</span>
                                 </span>
                                 <span className={`text-[11px] font-black uppercase tracking-normal mt-1 drop-shadow-[0_0_5px_rgba(250,204,21,0.4)] ${scrolled ? 'text-secondary' : 'text-accent'}`}>
-                                    ගණිතයට හොඳම විසඳුම
+                                    ගණිතයට හරිම උත්තරේ
                                 </span>
                             </div>
                         </Link>

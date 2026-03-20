@@ -1,5 +1,5 @@
 import { GraduationCap, Facebook, Instagram, Youtube, Twitter } from 'lucide-react';
-import logo from '../assets/logo1.png';
+import logo from '../assets/logo.jpeg';
 
 const Footer = () => {
     return (
@@ -18,10 +18,10 @@ const Footer = () => {
                             </div>
                             <div className="ml-4 flex flex-col group-hover:translate-x-1 transition-transform">
                                 <span className="text-2xl font-black tracking-tight leading-none">
-                                    My<span className="text-secondary drop-shadow-[0_0_8px_rgba(0,116,217,0.3)]">Maths</span>
+                                    MYMATHS<span className="text-secondary drop-shadow-[0_0_8px_rgba(0,116,217,0.3)]">.LK</span>
                                 </span>
                                 <span className="text-[10px] font-black uppercase tracking-normal mt-1 text-accent drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]">
-                                    ගණිතයට හොඳම විසඳුම
+                                    ගණිතයට හරිම උත්තරේ
                                 </span>
                             </div>
                         </div>
@@ -81,7 +81,7 @@ const Footer = () => {
 
                 <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-gray-600 text-sm">
                     <div className="flex flex-col md:flex-row items-center md:space-x-4">
-                        <p>© 2026 My Maths. All Rights Reserved.</p>
+                        <p>© 2026 MYMATHS.LK. All Rights Reserved.</p>
                         <span className="hidden md:inline text-gray-800">|</span>
                         <p className="text-gray-500 font-medium mt-1 md:mt-0">Developed by <span className="text-secondary font-bold">K&S Developers</span></p>
                     </div>

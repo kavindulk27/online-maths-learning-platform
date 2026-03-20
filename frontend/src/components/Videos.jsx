@@ -34,13 +34,13 @@ const Videos = () => {
     ];
 
     const [videos, setVideos] = useState(() => {
-        const saved = localStorage.getItem('home_videos');
+        const saved = localStorage.getItem('homepage_videos');
         return saved ? JSON.parse(saved) : defaultVideos;
     });
 
     useEffect(() => {
         const handleStorageChange = () => {
-            const saved = localStorage.getItem('home_videos');
+            const saved = localStorage.getItem('homepage_videos');
             if (saved) setVideos(JSON.parse(saved));
         };
 
@@ -90,7 +90,7 @@ const Videos = () => {
                 {/* Grid */}
                 {videos.length > 0 ? (
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
-                        {videos.map((video, i) => (
+                        {[...videos].sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0)).map((video, i) => (
                             <VideoCard key={video.id} video={video} index={i} />
                         ))}
                     </div>
@@ -123,7 +123,7 @@ const Videos = () => {
 };
 
 const VideoCard = ({ video, index }) => {
-    const videoId = extractVideoId(video.link);
+    const videoId = extractVideoId(video.youtubeLink || video.link);
     const thumbnail = video.thumbnail || (videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : '');
 
     return (
@@ -166,7 +166,7 @@ const VideoCard = ({ video, index }) => {
                 </p>
 
                 <a
-                    href={video.link}
+                    href={video.youtubeLink || video.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center space-x-3 text-primary font-black text-xs uppercase tracking-[0.2em] group/btn"

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Lock, Youtube, Facebook, Phone, ArrowLeft, School, MapPin, GraduationCap, Heart, ChevronRight, Mail } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
-import logo from '../../assets/logo1.png';
+import logo from '../../assets/logo.jpeg';
 
 const Login = () => {
     const navigate = useNavigate();
@@ -38,9 +38,9 @@ const Login = () => {
         const nextNumber = parseInt(lastId) + 1;
         localStorage.setItem('last_student_number', nextNumber.toString());
         
-        // Pad with zeros to ensure 3 digits (e.g., 001, 002)
-        const paddedNumber = nextNumber.toString().padStart(3, '0');
-        return `STU-${year}-${paddedNumber}`;
+        // Pad with zeros to ensure 5 digits (e.g., 00001, 00002)
+        const paddedNumber = nextNumber.toString().padStart(5, '0');
+        return `${year}-${paddedNumber}`;
     };
 
     const handleSubmit = (e) => {
@@ -166,13 +166,24 @@ const Login = () => {
                 {/* Right Column: Login Form */}
                 <div className="md:w-1/2 p-8 md:p-16 flex flex-col items-center justify-center order-1 md:order-2 border-b md:border-b-0 md:border-l border-gray-100">
                     {/* Brand Header */}
-                    <div className="flex flex-col items-center mb-10">
-                        <img
-                            src={logo}
-                            alt="My Maths Logo"
-                            className="h-48 w-auto object-contain"
-                        />
-                    </div>
+                    <Link to="/" className="flex flex-col items-center mb-12 group">
+                        <div className="relative mb-4">
+                            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full scale-150 group-hover:bg-secondary/30 transition-colors" />
+                            <img
+                                src={logo}
+                                alt="My Maths Logo"
+                                className="h-24 w-auto object-contain relative z-10 drop-shadow-2xl transition-transform group-hover:scale-105"
+                            />
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <span className="text-2xl font-black tracking-tight leading-none text-gray-800">
+                                MYMATHS<span className="text-secondary drop-shadow-[0_0_8px_rgba(0,116,217,0.3)]">.LK</span>
+                            </span>
+                            <span className="text-[10px] font-black uppercase tracking-normal mt-1 text-primary/60">
+                                ගණිතයට හරිම උත්තරේ
+                            </span>
+                        </div>
+                    </Link>
 
                     <h2 className="text-3xl font-black text-gray-800 mb-8 self-start">
                         {isLogin ? 'Sign In / ඇතුල් වන්න' : 
