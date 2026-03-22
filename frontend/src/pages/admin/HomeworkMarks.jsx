@@ -6,6 +6,7 @@ import {
     Save,
     CheckCircle2,
     Users,
+    ChevronDown,
 } from 'lucide-react';
 
 const HomeworkMarks = ({ students }) => {
@@ -83,10 +84,11 @@ const HomeworkMarks = ({ students }) => {
                             <select 
                                 value={selectedWeek}
                                 onChange={(e) => setSelectedWeek(e.target.value)}
-                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 pl-14 font-black text-xs uppercase tracking-widest outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all appearance-none cursor-pointer text-gray-700"
+                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 pl-14 pr-12 font-black text-xs uppercase tracking-widest outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all appearance-none cursor-pointer text-gray-700"
                             >
                                 {['Week 01', 'Week 02', 'Week 03', 'Week 04'].map(w => <option key={w} value={w}>{w}</option>)}
                             </select>
+                            <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-primary z-30 pointer-events-none" size={16} />
                         </div>
 
                         {/* Grade Selection */}
@@ -97,10 +99,11 @@ const HomeworkMarks = ({ students }) => {
                             <select 
                                 value={selectedGrade}
                                 onChange={(e) => setSelectedGrade(e.target.value)}
-                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 pl-14 font-black text-xs uppercase tracking-widest outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all appearance-none cursor-pointer text-gray-700"
+                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 pl-14 pr-12 font-black text-xs uppercase tracking-widest outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all appearance-none cursor-pointer text-gray-700"
                             >
                                 {['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11'].map(g => <option key={g} value={g}>{g}</option>)}
                             </select>
+                            <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-primary z-30 pointer-events-none" size={16} />
                         </div>
                     </div>
                 </div>

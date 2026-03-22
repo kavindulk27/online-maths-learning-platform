@@ -7,6 +7,7 @@ import {
     Download,
     Award,
     Target,
+    ChevronDown,
 } from 'lucide-react';
 
 // Helper sub-component for report card
@@ -185,9 +186,10 @@ const SystemReports = ({ students }) => {
                     <div className="relative">
                         <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" size={16} />
                         <select value={selectedGrade} onChange={e => setSelectedGrade(e.target.value)}
-                            className="bg-white border border-gray-100 rounded-2xl py-3 pl-10 pr-6 text-sm font-black text-gray-700 outline-none appearance-none cursor-pointer shadow-sm">
+                            className="bg-white border border-gray-100 rounded-2xl py-3 pl-10 pr-10 text-sm font-black text-gray-700 outline-none appearance-none cursor-pointer shadow-sm">
                             {['Grade 6','Grade 7','Grade 8','Grade 9','Grade 10','Grade 11'].map(g => <option key={g} value={g}>{g}</option>)}
                         </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-primary pointer-events-none" size={14} />
                     </div>
                     <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{gradeStudents.length} students</span>
                 </div>

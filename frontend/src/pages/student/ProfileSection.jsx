@@ -130,19 +130,7 @@ const ProfileSection = ({ student, setStudent }) => {
                         />
                     </div>
 
-                    {/* Parent Phone */}
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center space-x-2">
-                            <Phone size={12} />
-                            <span>Parent Phone / මවුපියන්ගේ අංකය</span>
-                        </label>
-                        <input
-                            type="tel"
-                            value={editData.parentPhone}
-                            onChange={(e) => setEditData({ ...editData, parentPhone: e.target.value })}
-                            className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                        />
-                    </div>
+                    {/* Parent Phone removed as per request */}
 
                     {/* District */}
                     <div className="space-y-2">

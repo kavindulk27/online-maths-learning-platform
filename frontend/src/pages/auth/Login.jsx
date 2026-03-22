@@ -13,7 +13,6 @@ const Login = () => {
         grade: '',
         school: '',
         studentPhone: '',
-        parentPhone: '',
         district: '',
         email: '',
         password: '',
@@ -48,7 +47,7 @@ const Login = () => {
         
         if (isRegister) {
             // Define required fields for registration (excluding internal/optional fields)
-            const requiredFields = ['name', 'grade', 'school', 'parentPhone', 'district', 'email', 'password'];
+            const requiredFields = ['name', 'grade', 'school', 'district', 'email', 'password'];
             const emptyFields = requiredFields.filter(key => !formData[key]);
             
             if (emptyFields.length > 0) {
@@ -72,7 +71,6 @@ const Login = () => {
                 school: formData.school,
                 email: formData.email,
                 studentPhone: formData.studentPhone,
-                parentPhone: formData.parentPhone,
                 district: formData.district,
                 status: 'Unpaid',
                 progress: 0,
@@ -85,8 +83,11 @@ const Login = () => {
             setShowSuccess(true);
         } else if (isForgotId) {
             // Identity verification logic
-            if (!formData.studentId || !formData.parentPhone) {
-                alert('කරුණාකර ශිෂ්‍ය අංකය සහ මවුපියන්ගේ අංකය ඇතුළත් කරන්න');
+            const allStudents = JSON.parse(localStorage.getItem('all_students') || '[]');
+            const student = allStudents.find(s => (s.id === formData.studentId || s.email === formData.studentId) && s.email === formData.email);
+
+            if (!student) {
+                alert('ඇතුළත් කළ තොරතුරු නිවැරදි නැත. කරුණාකර නැවත උත්සාහ කරන්න. (Identity verification failed. Please check your Student ID and Email.)');
                 return;
             }
             // Transition to reset step
@@ -101,6 +102,16 @@ const Login = () => {
                 alert('මුරපදයන් එකිනෙකට නොගැලපේ (Passwords do not match)');
                 return;
             }
+
+            const allStudents = JSON.parse(localStorage.getItem('all_students') || '[]');
+            const updatedStudents = allStudents.map(s => {
+                if (s.id === formData.studentId || s.email === formData.studentId) {
+                    return { ...s, password: formData.password };
+                }
+                return s;
+            });
+
+            localStorage.setItem('all_students', JSON.stringify(updatedStudents));
             alert('මුරපදය සාර්ථකව වෙනස් කළා! (Password Reset Successful)');
             setAuthMode('login');
         } else {
@@ -126,7 +137,6 @@ const Login = () => {
                     school: existing.school,
                     email: existing.email,
                     studentPhone: existing.studentPhone || '',
-                    parentPhone: existing.parentPhone || '',
                     district: existing.district || '',
                     paymentStatus: existing.status || 'Unpaid'
                 };
@@ -286,18 +296,7 @@ const Login = () => {
                                             placeholder="Student Phone (Optional) / ඔබේ දුරකථනය"
                                         />
                                     </div>
-                                    <div className="relative">
-                                        <Heart className="absolute left-0 bottom-3 text-secondary" size={18} />
-                                        <input
-                                            type="tel"
-                                            name="parentPhone"
-                                            required
-                                            value={formData.parentPhone}
-                                            onChange={handleChange}
-                                            className="w-full border-b border-gray-300 py-2 pl-7 text-sm text-gray-800 focus:border-secondary outline-none transition-colors font-bold"
-                                            placeholder="Parent Phone / මවුපියන්ගේ අංකය *"
-                                        />
-                                    </div>
+                                    {/* Parent Phone removed as per request */}
                                     <div className="relative">
                                         <MapPin className="absolute left-0 bottom-3 text-gray-400" size={18} />
                                         <select
@@ -367,15 +366,15 @@ const Login = () => {
                                         />
                                     </div>
                                     <div className="relative">
-                                        <Heart className="absolute left-0 bottom-4 text-secondary" size={20} />
+                                        <Mail className="absolute left-0 bottom-4 text-gray-400" size={20} />
                                         <input
-                                            type="tel"
-                                            name="parentPhone"
+                                            type="email"
+                                            name="email"
                                             required
-                                            value={formData.parentPhone}
+                                            value={formData.email}
                                             onChange={handleChange}
                                             className="w-full border-b border-gray-300 py-3 pl-8 text-gray-800 focus:border-secondary outline-none transition-colors"
-                                            placeholder="Parent Phone / මවුපියන්ගේ අංකය"
+                                            placeholder="Registered Email / ලියාපදිංචි විද්‍යුත් තැපෑල"
                                         />
                                     </div>
                                 </motion.div>

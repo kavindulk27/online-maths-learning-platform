@@ -7,6 +7,7 @@ import {
     CheckCircle2,
     Users,
     Upload,
+    ChevronDown,
 } from 'lucide-react';
 
 const ExamMarks = ({ students }) => {
@@ -133,10 +134,11 @@ const ExamMarks = ({ students }) => {
                         <select 
                             value={selectedGrade}
                             onChange={(e) => setSelectedGrade(e.target.value)}
-                            className="w-full bg-gray-50 border-none rounded-2xl p-5 pl-14 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none appearance-none cursor-pointer"
+                            className="w-full bg-gray-50 border-none rounded-2xl p-5 pl-14 pr-12 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none appearance-none cursor-pointer"
                         >
                             {['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11'].map(g => <option key={g} value={g}>{g}</option>)}
                         </select>
+                        <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-primary z-30 pointer-events-none" size={16} />
                     </div>
                 </div>
                 <div className="bg-white p-8 rounded-[30px] shadow-sm border border-gray-100 relative group">
@@ -146,10 +148,11 @@ const ExamMarks = ({ students }) => {
                         <select 
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(e.target.value)}
-                            className="w-full bg-gray-50 border-none rounded-2xl p-5 pl-14 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none appearance-none cursor-pointer"
+                            className="w-full bg-gray-50 border-none rounded-2xl p-5 pl-14 pr-12 text-sm font-black text-gray-700 focus:ring-4 focus:ring-primary/5 outline-none appearance-none cursor-pointer"
                         >
                             {months.map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
+                        <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-primary z-30 pointer-events-none" size={16} />
                     </div>
                 </div>
             </div>
