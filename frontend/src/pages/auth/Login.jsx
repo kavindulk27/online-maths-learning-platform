@@ -3,13 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User, Lock, Youtube, Facebook, Phone, ArrowLeft, School, MapPin, GraduationCap, Heart, ChevronRight, Mail } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import logo from '../../assets/logo.jpeg';
+import axiosInstance from '../../api/axios';
 
 const Login = () => {
     const navigate = useNavigate();
     const [authMode, setAuthMode] = useState('login'); // login, register, forgot-id, forgot-reset
+    const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
-        studentId: '',
+        studentId: '', // Used for username in backend
         grade: '',
         school: '',
         studentPhone: '',
@@ -31,119 +33,110 @@ const Login = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const generateStudentId = () => {
-        const year = new Date().getFullYear();
-        const lastId = localStorage.getItem('last_student_number') || '0';
-        const nextNumber = parseInt(lastId) + 1;
-        localStorage.setItem('last_student_number', nextNumber.toString());
-        
-        // Pad with zeros to ensure 5 digits (e.g., 00001, 00002)
-        const paddedNumber = nextNumber.toString().padStart(5, '0');
-        return `${year}-${paddedNumber}`;
-    };
-
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        
-        if (isRegister) {
-            // Define required fields for registration (excluding internal/optional fields)
-            const requiredFields = ['name', 'grade', 'school', 'district', 'email', 'password'];
-            const emptyFields = requiredFields.filter(key => !formData[key]);
-            
-            if (emptyFields.length > 0) {
-                alert('කරුණාකර සියලුම තොරතුරු නිවැරදිව පූරණය කරන්න (Please fill all fields)');
-                return;
-            }
+        setLoading(true);
 
-            if (formData.password.length < 8) {
-                alert('මුරපදය සඳහා අවම වශයෙන් අකුරු/ඉලක්කම් 8ක් ඇතුළත් කරන්න (Password must be at least 8 characters long)');
-                return;
-            }
+        try {
+            if (isRegister) {
+                const requiredFields = ['name', 'grade', 'school', 'district', 'email', 'password'];
+                const emptyFields = requiredFields.filter(key => !formData[key]);
 
-            const newId = generateStudentId();
-            
-            // Persist new student to all_students list for Admin Portal
-            const allStudents = JSON.parse(localStorage.getItem('all_students') || '[]');
-            const newStudent = {
-                id: newId,
-                name: formData.name,
-                grade: formData.grade,
-                school: formData.school,
-                email: formData.email,
-                studentPhone: formData.studentPhone,
-                district: formData.district,
-                status: 'Unpaid',
-                progress: 0,
-                joinedAt: new Date().toISOString()
-            };
-            
-            localStorage.setItem('all_students', JSON.stringify([...allStudents, newStudent]));
-            
-            setGeneratedId(newId);
-            setShowSuccess(true);
-        } else if (isForgotId) {
-            // Identity verification logic
-            const allStudents = JSON.parse(localStorage.getItem('all_students') || '[]');
-            const student = allStudents.find(s => (s.id === formData.studentId || s.email === formData.studentId) && s.email === formData.email);
-
-            if (!student) {
-                alert('ඇතුළත් කළ තොරතුරු නිවැරදි නැත. කරුණාකර නැවත උත්සාහ කරන්න. (Identity verification failed. Please check your Student ID and Email.)');
-                return;
-            }
-            // Transition to reset step
-            setAuthMode('forgot-reset');
-        } else if (isForgotReset) {
-            // Reset logic
-            if (formData.password.length < 8) {
-                alert('මුරපදය සඳහා අවම වශයෙන් අකුරු/ඉලක්කම් 8ක් ඇතුළත් කරන්න');
-                return;
-            }
-            if (formData.password !== formData.confirmPassword) {
-                alert('මුරපදයන් එකිනෙකට නොගැලපේ (Passwords do not match)');
-                return;
-            }
-
-            const allStudents = JSON.parse(localStorage.getItem('all_students') || '[]');
-            const updatedStudents = allStudents.map(s => {
-                if (s.id === formData.studentId || s.email === formData.studentId) {
-                    return { ...s, password: formData.password };
-                }
-                return s;
-            });
-
-            localStorage.setItem('all_students', JSON.stringify(updatedStudents));
-            alert('මුරපදය සාර්ථකව වෙනස් කළා! (Password Reset Successful)');
-            setAuthMode('login');
-        } else {
-            // Handle login logic
-            const isAdmin = formData.studentId === 'admin@mymaths.com' && formData.password === 'admin123';
-            
-            if (isAdmin) {
-                navigate('/admin');
-            } else {
-                // Look up student from registered list
-                const allStudents = JSON.parse(localStorage.getItem('all_students') || '[]');
-                const existing = allStudents.find(s => s.id === formData.studentId || s.email === formData.studentId);
-
-                if (!existing) {
-                    alert('ශිෂ්‍ය අංකය හෝ Email නිවැරදි නැත. කරුණාකර නැවත උත්සාහ කරන්න. (Student ID or Email not found. Please try again.)');
+                if (emptyFields.length > 0) {
+                    alert('කරුණාකර සියලුම තොරතුරු නිවැරදිව පූරණය කරන්න (Please fill all fields)');
+                    setLoading(false);
                     return;
                 }
 
-                const studentData = {
-                    name: existing.name,
-                    id: existing.id,
-                    grade: existing.grade,
-                    school: existing.school,
-                    email: existing.email,
-                    studentPhone: existing.studentPhone || '',
-                    district: existing.district || '',
-                    paymentStatus: existing.status || 'Unpaid'
+                if (formData.password.length < 8) {
+                    alert('මුරපදය සඳහා අවම වශයෙන් අකුරු/ඉලක්කම් 8ක් ඇතුළත් කරන්න');
+                    setLoading(false);
+                    return;
+                }
+
+                // Call backend registration
+                const regData = {
+                    first_name: formData.name.trim(),
+                    email: formData.email.trim(),
+                    password: formData.password, // Passwords generally shouldn't be auto-trimmed
+                    role: 'student',
+                    phone: formData.studentPhone.trim(),
+                    grade: formData.grade,
+                    school: formData.school.trim(),
+                    district: formData.district
                 };
 
-                localStorage.setItem('current_student', JSON.stringify(studentData));
-                navigate('/student-dashboard');
+                const response = await axiosInstance.post('auth/register/', regData);
+                setGeneratedId(response.data.username);
+                setShowSuccess(true);
+            } else if (isLogin) {
+                // Determine if it's admin or student
+                const loginData = {
+                    username: formData.studentId.trim(),
+                    password: formData.password.trim()
+                };
+
+                const response = await axiosInstance.post('auth/login/', loginData);
+                const { access, refresh } = response.data;
+                
+                localStorage.setItem('access_token', access);
+                localStorage.setItem('refresh_token', refresh);
+                
+                // Decode token to get role
+                const payload = JSON.parse(atob(access.split('.')[1]));
+                const userRole = payload.role;
+                
+                if (userRole === 'admin') {
+                    navigate('/admin');
+                } else {
+                    // Fetch profile for student
+                    const profileRes = await axiosInstance.get('students/profiles/');
+                    const profile = profileRes.data[0]; 
+                    
+                    if (!profile) {
+                        alert('ඔබේ ශිෂ්‍ය ගිණුම සක්‍රිය නැත. කරුණාකර Admin සම්බන්ධ කරගන්න. (Student profile not found. Please contact admin.)');
+                        setLoading(false);
+                        return;
+                    }
+
+                    const studentData = {
+                        name: profile.user?.first_name || profile.user?.username || 'Student',
+                        id: profile.user?.username || '',
+                        grade: profile.grade,
+                        school: profile.school,
+                        email: profile.user?.email || '',
+                        studentPhone: profile.user?.phone || '',
+                        district: profile.district || '',
+                        paymentStatus: profile.payment_status || 'Unpaid' 
+                    };
+
+                    localStorage.setItem('current_student', JSON.stringify(studentData));
+                    navigate('/student-dashboard');
+                }
+            } else {
+                alert('This feature is currently being updated for the new system. (මෙම පහසුකම දැනට යාවත්කාලීන කරමින් පවතියි)');
             }
+        } catch (error) {
+            console.error('Auth Error:', error);
+            let errorMsg = 'පද්ධතියේ දෝෂයකි. කරුණාකර නැවත උත්සාහ කරන්න. (Authentication failed. Please check your credentials.)';
+            
+            if (error.response) {
+                // Server responded with an error
+                if (error.response.data?.detail) {
+                    errorMsg = error.response.data.detail;
+                } else if (error.response.data) {
+                    const firstKey = Object.keys(error.response.data)[0];
+                    const firstVal = error.response.data[firstKey];
+                    errorMsg = `${firstKey}: ${Array.isArray(firstVal) ? firstVal[0] : firstVal}`;
+                }
+            } else if (error.request) {
+                // Request was made but no response received (Network Error)
+                errorMsg = 'Backend එක සමඟ සම්බන්ධ වීමට නොහැක. කරුණාකර Backend එක Run වෙනවද කියා නැවත බලන්න. (Network Error: Cannot connect to backend)';
+            }
+            
+            alert(errorMsg);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -196,9 +189,9 @@ const Login = () => {
                     </Link>
 
                     <h2 className="text-3xl font-black text-gray-800 mb-8 self-start">
-                        {isLogin ? 'Sign In / ඇතුල් වන්න' : 
-                         isRegister ? 'අලුතින් ලියාපදිංචි වන්න' : 
-                         isForgotId ? 'Reset Password' : 'Set New Password'}
+                        {isLogin ? 'Sign In / ඇතුල් වන්න' :
+                            isRegister ? 'අලුතින් ලියාපදිංචි වන්න' :
+                                isForgotId ? 'Reset Password' : 'Set New Password'}
                     </h2>
 
                     <form className="w-full space-y-5" onSubmit={handleSubmit}>
@@ -308,10 +301,10 @@ const Login = () => {
                                         >
                                             <option value="" disabled>District / දිස්ත්‍රික්කය</option>
                                             {[
-                                                'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 
-                                                'Galle', 'Gampaha', 'Hambantota', 'Jaffna', 'Kalutara', 
-                                                'Kandy', 'Kegalle', 'Kilinochchi', 'Kurunegala', 'Mannar', 
-                                                'Matale', 'Matara', 'Moneragala', 'Mullaitivu', 'Nuwara Eliya', 
+                                                'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo',
+                                                'Galle', 'Gampaha', 'Hambantota', 'Jaffna', 'Kalutara',
+                                                'Kandy', 'Kegalle', 'Kilinochchi', 'Kurunegala', 'Mannar',
+                                                'Matale', 'Matara', 'Moneragala', 'Mullaitivu', 'Nuwara Eliya',
                                                 'Polonnaruwa', 'Puttalam', 'Ratnapura', 'Trincomalee', 'Vavuniya'
                                             ].map(d => (
                                                 <option key={d} value={d}>{d}</option>
@@ -415,26 +408,26 @@ const Login = () => {
                             )}
                         </AnimatePresence>
 
-                        <button 
+                        <button
                             type="submit"
                             className="w-full bg-primary hover:bg-secondary text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all shadow-lg active:scale-[0.98] mt-4"
                         >
-                            {isLogin ? 'Login / ඇතුල් වන්න' : 
-                             isRegister ? 'Register / ලියාපදිංචි වන්න' : 
-                             isForgotId ? 'Verify Identity' : 'Reset & Save'}
+                            {isLogin ? 'Login / ඇතුල් වන්න' :
+                                isRegister ? 'Register / ලියාපදිංචි වන්න' :
+                                    isForgotId ? 'Verify Identity' : 'Reset & Save'}
                         </button>
                     </form>
 
                     <div className="mt-8 flex flex-col items-center w-full space-y-4">
                         {isLogin ? (
-                            <button 
+                            <button
                                 onClick={() => setAuthMode('register')}
                                 className="w-full text-center py-3 px-4 border-2 border-primary text-primary text-xs font-black rounded-xl hover:bg-primary hover:text-white transition-all uppercase tracking-widest"
                             >
                                 Not a Student? Register Now!
                             </button>
                         ) : (
-                            <button 
+                            <button
                                 onClick={() => setAuthMode('login')}
                                 className="text-sm font-bold text-gray-600 hover:text-primary transition-colors flex items-center space-x-2"
                             >
@@ -442,9 +435,9 @@ const Login = () => {
                                 <span>Back to Login / නැවත Login වෙත</span>
                             </button>
                         )}
-                        
+
                         {isLogin && (
-                            <button 
+                            <button
                                 onClick={() => setAuthMode('forgot-id')}
                                 className="text-sm font-medium text-gray-400 hover:text-secondary transition-colors underline underline-offset-4"
                             >
@@ -509,23 +502,23 @@ const Login = () => {
                         >
                             {/* Decorative Background */}
                             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary via-secondary to-primary"></div>
-                            
+
                             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                                 <User className="text-green-600" size={40} />
                             </div>
-                            
+
                             <h3 className="text-2xl font-black text-gray-800 mb-2">ලියාපදිංචිය සාර්ථකයි!</h3>
                             <p className="text-gray-500 text-sm mb-6">Registration Successful!</p>
-                            
+
                             <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-6 mb-8">
                                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">ඔබේ ශිෂ්‍ය අංකය (Student ID)</p>
                                 <p className="text-3xl font-black text-primary tracking-tighter">{generatedId}</p>
                             </div>
-                            
+
                             <p className="text-xs text-gray-400 mb-8 leading-relaxed">
                                 කරුණාකර මෙම අංකය මතක තබා ගන්න හෝ සුරැකිකව තබා ගන්න. පන්ති සඳහා පිවිසීමට මෙය අවශ්‍ය වේ.
                             </p>
-                            
+
                             <button
                                 onClick={() => {
                                     setShowSuccess(false);

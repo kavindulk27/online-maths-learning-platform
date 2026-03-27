@@ -1,0 +1,5 @@
+{
+    "css.lint.unknownAtRules": "ignore",
+    "python.analysis.extraPaths": ["./backend"],
+    "python.autoComplete.extraPaths": ["./backend"]
+}

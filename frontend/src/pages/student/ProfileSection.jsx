@@ -9,6 +9,7 @@ import {
     GraduationCap,
     Phone,
 } from 'lucide-react';
+import axiosInstance from '../../api/axios';
 
 const ProfileSection = ({ student, setStudent }) => {
     const [editData, setEditData] = useState({ ...student });
@@ -19,7 +20,7 @@ const ProfileSection = ({ student, setStudent }) => {
     });
     const [isSaving, setIsSaving] = useState(false);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         // Validation
         if (!editData.name || !editData.grade || !editData.school) {
             alert('කරුණාකර අනිවාර්ය තොරතුරු ඇතුළත් කරන්න (Please fill required fields)');
@@ -38,17 +39,44 @@ const ProfileSection = ({ student, setStudent }) => {
         }
 
         setIsSaving(true);
-        setTimeout(() => {
-            setStudent(editData);
-            localStorage.setItem('current_student', JSON.stringify(editData));
-            setIsSaving(false);
-            if (passwordData.new) {
-                setPasswordData({ current: '', new: '', confirm: '' });
-                alert('Profile and Password updated successfully! / තොරතුරු සහ මුරපදය සාර්ථකව යාවත්කාලීන කළා!');
-            } else {
-                alert('Profile updated successfully! / පැතිකඩ යාවත්කාලීන කිරීම සාර්ථකයි!');
+        try {
+            // Update profile via backend
+            const profileRes = await axiosInstance.get('students/profiles/');
+            const profileId = profileRes.data[0]?.id;
+
+            if (profileId) {
+                await axiosInstance.patch(`students/profiles/${profileId}/`, {
+                    grade: editData.grade,
+                    school: editData.school,
+                    district: editData.district,
+                });
             }
-        }, 1000);
+
+            // Update user fields (first_name, phone)
+            await axiosInstance.patch('auth/profile/', {
+                first_name: editData.name,
+                phone: editData.studentPhone,
+                email: editData.email,
+            });
+
+            // Change password if provided
+            if (passwordData.new) {
+                await axiosInstance.post('auth/change-password/', {
+                    old_password: passwordData.current,
+                    new_password: passwordData.new,
+                });
+                setPasswordData({ current: '', new: '', confirm: '' });
+            }
+
+            setStudent(editData);
+            alert('Profile updated successfully! / පැතිකඩ යාවත්කාලීන කිරීම සාර්ථකයි!');
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            const msg = error.response?.data?.detail || error.response?.data?.old_password?.[0] || 'Profile update failed. Please try again.';
+            alert(msg);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -60,31 +88,33 @@ const ProfileSection = ({ student, setStudent }) => {
 
             <div className="p-8 md:p-12 space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Name */}
+                    {/* Name - Read Only */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center space-x-2">
                             <User size={12} />
                             <span>Name / නම</span>
+                            <span className="text-[9px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full font-black">READ ONLY</span>
                         </label>
                         <input
                             type="text"
                             value={editData.name}
-                            onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                            className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            readOnly
+                            className="w-full bg-gray-100 border border-gray-100 rounded-xl p-4 text-sm font-bold text-gray-400 outline-none cursor-not-allowed"
                         />
                     </div>
 
-                    {/* Email */}
+                    {/* Student ID - Read Only */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center space-x-2">
                             <Mail size={12} />
-                            <span>Email / විද්‍යුත් තැපෑල</span>
+                            <span>Student ID / ශිෂ්‍ය අංකය</span>
+                            <span className="text-[9px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full font-black">READ ONLY</span>
                         </label>
                         <input
-                            type="email"
-                            value={editData.email}
-                            onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                            className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            type="text"
+                            value={student.id || ''}
+                            readOnly
+                            className="w-full bg-gray-100 border border-gray-100 rounded-xl p-4 text-sm font-bold text-gray-400 outline-none cursor-not-allowed tracking-widest"
                         />
                     </div>
 

@@ -1,60 +1,55 @@
 import { useState, useEffect } from 'react';
-import { Trophy, Users } from 'lucide-react';
+import { Trophy, Users, Loader2 } from 'lucide-react';
+import axiosInstance from '../../api/axios';
 
 const MarksSection = ({ student }) => {
     const [performance, setPerformance] = useState([]);
+    const [loading, setLoading] = useState(true);
     
     useEffect(() => {
-        const calculateStats = () => {
-            const allMarks = JSON.parse(localStorage.getItem('all_exam_marks') || '[]');
-            
-            // Normalize current student grade
-            const normalizedStudentGrade = student.grade?.startsWith('Grade ') ? student.grade : `Grade ${student.grade?.trim()}`;
-            
-            // Group all marks by month for ranking within the same grade
-            const monthlyStats = {};
-            allMarks.forEach(m => {
-                const normalizedMarkGrade = m.grade?.startsWith('Grade ') ? m.grade : `Grade ${m.grade?.trim()}`;
-                
-                if (normalizedMarkGrade === normalizedStudentGrade) {
-                    if (!monthlyStats[m.month]) monthlyStats[m.month] = [];
-                    monthlyStats[m.month].push(m);
-                }
-            });
+        const fetchAndCalculate = async () => {
+            try {
+                setLoading(true);
+                // Fetch this student's exam marks from backend
+                const response = await axiosInstance.get('academic/marks/');
+                const myMarks = response.data.filter(m => m.type === 'exam');
 
-            // Calculate student-specific stats for each month
-            const result = Object.keys(monthlyStats).map(month => {
-                const monthMarks = monthlyStats[month].sort((a, b) => b.marks - a.marks);
-                const studentEntry = monthMarks.find(m => m.studentId === student.id);
-                
-                if (!studentEntry) return null;
+                // Group by subject/date for ranking — simplify: group by month
+                const monthlyStats = {};
+                myMarks.forEach(m => {
+                    const monthKey = new Date(m.date).toLocaleString('en', { month: 'long' });
+                    if (!monthlyStats[monthKey]) monthlyStats[monthKey] = [];
+                    monthlyStats[monthKey].push(m);
+                });
 
-                const rank = monthMarks.findIndex(m => m.studentId === student.id) + 1;
-                const totalInClass = monthMarks.length;
-                const average = monthMarks.reduce((acc, curr) => acc + curr.marks, 0) / totalInClass;
-                const topMark = monthMarks[0].marks;
+                const result = Object.keys(monthlyStats).map(month => {
+                    const monthMarks = monthlyStats[month];
+                    const latest = monthMarks[monthMarks.length - 1];
+                    const percentage = Math.round((latest.score / latest.total_possible) * 100);
 
-                return {
-                    month,
-                    myMark: studentEntry.marks,
-                    rank,
-                    totalInClass,
-                    average: Math.round(average),
-                    topMark,
-                    status: rank <= 3 ? 'Top Performer' : rank <= 10 ? 'Excellent' : studentEntry.marks >= 75 ? 'Very Good' : 'Improving'
-                };
-            }).filter(r => r !== null);
+                    return {
+                        month,
+                        myMark: percentage,
+                        subject: latest.subject,
+                        remarks: latest.remarks,
+                        rank: 1, // Ranking requires all students' marks - simplified for now
+                        totalInClass: 1,
+                        average: percentage,
+                        status: percentage >= 90 ? 'Top Performer' : percentage >= 75 ? 'Excellent' : percentage >= 60 ? 'Very Good' : 'Improving'
+                    };
+                });
 
-            setPerformance(result.sort((a, b) => {
-                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-                return months.indexOf(b.month) - months.indexOf(a.month);
-            }));
+                const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                setPerformance(result.sort((a, b) => months.indexOf(b.month) - months.indexOf(a.month)));
+            } catch (error) {
+                console.error('Error fetching marks:', error);
+            } finally {
+                setLoading(false);
+            }
         };
 
-        calculateStats();
-        window.addEventListener('storage', calculateStats);
-        return () => window.removeEventListener('storage', calculateStats);
-    }, [student.id, student.grade]);
+        fetchAndCalculate();
+    }, [student.id]);
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Search,
@@ -8,45 +8,85 @@ import {
     CreditCard,
     Image as ImageIcon,
     X,
+    Loader2,
 } from 'lucide-react';
+import axiosInstance from '../../api/axios';
 
 const PaymentApprovals = ({ students, setStudents }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedGrade, setSelectedGrade] = useState('All Grades');
     const [viewingReceipt, setViewingReceipt] = useState(null);
+    const [payments, setPayments] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     const grades = ['All Grades', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11'];
 
-    const handleStatusToggle = (student) => {
-        const newStatus = student.status === 'Approved' ? 'Unpaid' : 'Approved';
-        const updatedStudents = students.map(s => 
-            s.id === student.id ? { ...s, status: newStatus } : s
-        );
-        setStudents(updatedStudents);
-        localStorage.setItem('all_students', JSON.stringify(updatedStudents));
-
-        const currentStudent = JSON.parse(localStorage.getItem('current_student') || '{}');
-        if (currentStudent.id === student.id) {
-            localStorage.setItem('current_student', JSON.stringify({ ...currentStudent, paymentStatus: newStatus }));
-            window.dispatchEvent(new Event('storage'));
+    const fetchPayments = async () => {
+        try {
+            setLoading(true);
+            const response = await axiosInstance.get('payments/');
+            setPayments(response.data);
+        } catch (error) {
+            console.error('Error fetching payments:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const filteredStudents = students.filter(s => {
+    useEffect(() => {
+        fetchPayments();
+    }, []);
+
+    const handleStatusUpdate = async (paymentId, newStatus) => {
+        try {
+            await axiosInstance.patch(`payments/${paymentId}/`, { status: newStatus });
+            
+            // Update local payments list
+            setPayments(prev => prev.map(p => p.id === paymentId ? { ...p, status: newStatus } : p));
+            
+            // Sync with students list in Admin.jsx
+            const payment = payments.find(p => p.id === paymentId);
+            if (payment && setStudents) {
+                const studentUsername = payment.student_details?.username;
+                const newDisplayStatus = newStatus === 'approved' ? 'Paid' : (newStatus === 'pending' ? 'Pending' : 'Unpaid');
+                
+                setStudents(prev => prev.map(s => 
+                    s.id === studentUsername ? { ...s, status: newDisplayStatus } : s
+                ));
+            }
+        } catch (error) {
+            console.error('Error updating payment status:', error);
+            alert('Error updating status.');
+        }
+    };
+
+    const filteredPayments = payments.filter(p => {
         const query = searchTerm.toLowerCase();
-        const matchesSearch = s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query);
-        const matchesGrade = selectedGrade === 'All Grades' || s.grade === selectedGrade;
+        const student = p.student_details || {}; // I'll update serializer to include student_details
+        const studentName = student.first_name || student.username || '';
+        const studentId = student.username || '';
+        
+        const matchesSearch = studentName.toLowerCase().includes(query) || studentId.toLowerCase().includes(query);
+        const matchesGrade = selectedGrade === 'All Grades' || p.grade === selectedGrade; 
         
         if (searchTerm) return matchesSearch && matchesGrade;
-        return s.status === 'Pending' && matchesGrade;
+        return (p.status === 'pending' || p.status === 'Pending' || p.status === 'approved' || p.status === 'Approved') && matchesGrade;
     });
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="animate-spin text-primary" size={48} />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
                     <h3 className="text-lg font-black text-gray-900 leading-none mb-1">Payment Approvals & Manual Search</h3>
-                    <p className="text-xs text-gray-600 font-extrabold uppercase tracking-widest">Approve pending receipts or search any student for manual activation</p>
+                    <p className="text-xs text-gray-600 font-extrabold uppercase tracking-widest">Approve pending receipts from students</p>
                 </div>
 
                 <div className="relative group">
@@ -81,68 +121,78 @@ const PaymentApprovals = ({ students, setStudents }) => {
                                         </select>
                                     </div>
                                 </th>
+                                <th className="px-8 py-5 text-[11px] font-black text-gray-600 uppercase tracking-widest">Month</th>
                                 <th className="px-8 py-5 text-[11px] font-black text-gray-600 uppercase tracking-widest">Status</th>
                                 <th className="px-8 py-5 text-[11px] font-black text-gray-600 uppercase tracking-widest text-right">Approve/Reject</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {filteredStudents.length > 0 ? (
-                                filteredStudents.map((stu, i) => (
-                                    <tr key={stu.id} className="hover:bg-gray-50/30 transition-colors group">
-                                        <td className="px-8 py-6 whitespace-nowrap">
-                                            <div className="flex items-center space-x-4">
-                                                <div className="w-10 h-10 bg-primary/5 text-primary rounded-xl flex items-center justify-center font-black text-xs">
-                                                    {stu.name[0]}
+                            {filteredPayments.length > 0 ? (
+                                filteredPayments.map((p, i) => {
+                                    const student = p.student_details || {};
+                                    const name = student.first_name || student.username || 'Unknown';
+                                    const id = student.username || 'N/A';
+                                    
+                                    return (
+                                        <tr key={p.id} className="hover:bg-gray-50/30 transition-colors group">
+                                            <td className="px-8 py-6 whitespace-nowrap">
+                                                <div className="flex items-center space-x-4">
+                                                    <div className="w-10 h-10 bg-primary/5 text-primary rounded-xl flex items-center justify-center font-black text-xs">
+                                                        {name[0]}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-black text-gray-800 leading-none mb-1">{name}</p>
+                                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ID: {id}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="text-sm font-black text-gray-800 leading-none mb-1">{stu.name}</p>
-                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">ID: {stu.id}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6 whitespace-nowrap">
-                                            <span className="text-sm font-bold text-gray-700">{stu.grade}</span>
-                                        </td>
-                                        <td className="px-8 py-6 whitespace-nowrap">
-                                            <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                                stu.status === 'Approved' ? 'bg-green-100 text-green-600' : 
-                                                stu.status === 'Pending' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'
-                                            }`}>
-                                                {stu.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-8 py-6 whitespace-nowrap text-right">
-                                            <div className="flex items-center justify-end space-x-3">
-                                                {stu.receiptImage && (
+                                            </td>
+                                            <td className="px-8 py-6 whitespace-nowrap">
+                                                <span className="text-sm font-bold text-gray-700">{p.grade}</span>
+                                            </td>
+                                            <td className="px-8 py-6 whitespace-nowrap">
+                                                <span className="text-sm font-bold text-gray-500">{p.month}</span>
+                                            </td>
+                                            <td className="px-8 py-6 whitespace-nowrap">
+                                                <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                                    p.status === 'approved' ? 'bg-green-100 text-green-600' : 
+                                                    (p.status === 'pending' || p.status === 'Pending') ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'
+                                                }`}>
+                                                    {p.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-8 py-6 whitespace-nowrap text-right">
+                                                <div className="flex items-center justify-end space-x-3">
+                                                    {p.receipt_image && (
+                                                        <button 
+                                                            onClick={() => setViewingReceipt(p)}
+                                                            className="p-2.5 bg-primary/10 text-primary rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm group"
+                                                            title="View Payment Receipt"
+                                                        >
+                                                            <Eye size={16} />
+                                                        </button>
+                                                    )}
                                                     <button 
-                                                        onClick={() => setViewingReceipt(stu)}
-                                                        className="p-2.5 bg-primary/10 text-primary rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm group"
-                                                        title="View Payment Receipt"
+                                                        onClick={() => handleStatusUpdate(p.id, p.status === 'approved' ? 'rejected' : 'approved')}
+                                                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center space-x-2 ${
+                                                            p.status === 'approved' 
+                                                            ? 'bg-red-500 text-white shadow-red-100' 
+                                                            : 'bg-green-500 text-white shadow-green-100'
+                                                        }`}
                                                     >
-                                                        <Eye size={16} />
+                                                        {p.status === 'approved' ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
+                                                        <span>{p.status === 'approved' ? 'Reject' : 'Approve'}</span>
                                                     </button>
-                                                )}
-                                                <button 
-                                                    onClick={() => handleStatusToggle(stu)}
-                                                    className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center space-x-2 ${
-                                                        stu.status === 'Approved' 
-                                                        ? 'bg-red-500 text-white shadow-red-100' 
-                                                        : 'bg-green-500 text-white shadow-green-100'
-                                                    }`}
-                                                >
-                                                    {stu.status === 'Approved' ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
-                                                    <span>{stu.status === 'Approved' ? 'Reject Access' : 'Approve Payment'}</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             ) : (
                                 <tr>
-                                    <td colSpan="4" className="px-8 py-12 text-center">
+                                    <td colSpan="5" className="px-8 py-12 text-center">
                                         <div className="flex flex-col items-center">
                                             <CreditCard className="text-gray-200 mb-4" size={48} />
-                                            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No students found matching your search</p>
+                                            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No pending payments found</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -176,7 +226,7 @@ const PaymentApprovals = ({ students, setStudents }) => {
                                     </div>
                                     <div>
                                         <h4 className="font-black text-gray-800 tracking-tight leading-none mb-1">Payment Receipt</h4>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Student: {viewingReceipt.name} ({viewingReceipt.id})</p>
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Student: {viewingReceipt.student_details?.first_name || viewingReceipt.student_details?.username} ({viewingReceipt.student_details?.username})</p>
                                     </div>
                                 </div>
                                 <button 
@@ -188,7 +238,7 @@ const PaymentApprovals = ({ students, setStudents }) => {
                             </div>
                             <div className="p-8 bg-gray-50 flex items-center justify-center min-h-[400px]">
                                 <img 
-                                    src={viewingReceipt.receiptImage} 
+                                    src={viewingReceipt.receipt_image} 
                                     alt="Receipt" 
                                     className="max-h-[60vh] rounded-2xl shadow-2xl border-4 border-white"
                                 />
@@ -202,7 +252,7 @@ const PaymentApprovals = ({ students, setStudents }) => {
                                 </button>
                                 <button 
                                     onClick={() => {
-                                        handleStatusToggle(viewingReceipt);
+                                        handleStatusUpdate(viewingReceipt.id, 'approved');
                                         setViewingReceipt(null);
                                     }}
                                     className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-green-100 transition-all active:scale-95 flex items-center space-x-2"

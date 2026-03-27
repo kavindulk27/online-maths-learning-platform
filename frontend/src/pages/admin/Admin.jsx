@@ -31,43 +31,61 @@ import HomepageHighlights from './HomepageHighlights';
 import SystemReports from './SystemReports';
 import ErrorBoundary from '../../components/ErrorBoundary';
 
+import axiosInstance from '../../api/axios';
+
 const Admin = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('dashboard');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [students, setStudents] = useState(() => {
-        const saved = localStorage.getItem('all_students');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [students, setStudents] = useState([]);
+    const [dashboardStats, setDashboardStats] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const [studentsRes, statsRes] = await Promise.all([
+                axiosInstance.get('students/profiles/'),
+                axiosInstance.get('dashboard/stats/')
+            ]);
+
+            // Normalize students
+            const normalizedStudents = studentsRes.data.map(profile => ({
+                id: profile.user.username,
+                userId: profile.user.id,           // DB primary key for API calls
+                name: profile.user.first_name || profile.user.username,
+                grade: profile.grade,
+                school: profile.school,
+                email: profile.user.email,
+                studentPhone: profile.user.phone || '',
+                district: profile.district || '',
+                status: profile.payment_status || 'Unpaid', 
+                progress: 0,
+                joinedAt: profile.joined_at
+            }));
+
+            setStudents(normalizedStudents);
+            setDashboardStats(statsRes.data);
+        } catch (error) {
+            console.error('Error fetching admin data:', error);
+            if (error.response?.status === 401) {
+                navigate('/login');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const handleStorageChange = () => {
-            const saved = localStorage.getItem('all_students');
-            if (saved) {
-                // Normalize grades for existing data (e.g., "11" -> "Grade 11")
-                const parsed = JSON.parse(saved);
-                let changed = false;
-                const normalized = parsed.map(s => {
-                    if (s.grade && !s.grade.startsWith('Grade ')) {
-                        changed = true;
-                        return { ...s, grade: `Grade ${s.grade.trim()}` };
-                    }
-                    return s;
-                });
-                
-                if (changed) {
-                    localStorage.setItem('all_students', JSON.stringify(normalized));
-                    setStudents(normalized);
-                } else {
-                    setStudents(parsed);
-                }
-            }
-        };
-
-        handleStorageChange(); // Initial normalization and load
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        fetchData();
     }, []);
+
+    const handleLogout = () => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('current_student');
+        navigate('/login');
+    };
 
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
@@ -137,8 +155,8 @@ const Admin = () => {
 
                 <div className="p-6 border-t border-white/10">
                     <button 
-                        onClick={() => navigate('/login')} 
-                        className="w-full flex items-center space-x-4 px-5 py-4 rounded-2xl text-white/70 hover:bg-red-500 hover:text-white transition-all font-bold text-sm"
+                        onClick={handleLogout} 
+                        className="w-full flex items-center space-x-4 px-5 py-2.5 rounded-2xl text-white/70 hover:bg-red-500 hover:text-white transition-all font-bold text-sm"
                     >
                         <LogOut size={20} />
                         <span>Sign Out</span>
@@ -185,28 +203,34 @@ const Admin = () => {
                 </header>
 
                 <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-gray-50/30 custom-scrollbar">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={activeTab}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="max-w-7xl mx-auto"
-                        >
-                            <ErrorBoundary key={activeTab}>
-                                {activeTab === 'dashboard' && <Dashboard students={students} />}
-                                {activeTab === 'students' && <StudentManagement students={students} setStudents={setStudents} />}
-                                {activeTab === 'payments' && <PaymentApprovals students={students} setStudents={setStudents} />}
-                                {activeTab === 'classes' && <ClassManagement />}
-                                {activeTab === 'marks' && <ExamMarks students={students} />}
-                                {activeTab === 'homework' && <HomeworkMarks students={students} />}
-                                {activeTab === 'recordings' && <ClassRecordings />}
-                                {activeTab === 'home-videos' && <HomepageHighlights />}
-                                {activeTab === 'reports' && <SystemReports students={students} />}
-                            </ErrorBoundary>
-                        </motion.div>
-                    </AnimatePresence>
+                    {loading ? (
+                        <div className="flex items-center justify-center h-full">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                        </div>
+                    ) : (
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={activeTab}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="max-w-7xl mx-auto"
+                            >
+                                <ErrorBoundary key={activeTab}>
+                                    {activeTab === 'dashboard' && <Dashboard stats={dashboardStats} />}
+                                    {activeTab === 'students' && <StudentManagement students={students} setStudents={setStudents} />}
+                                    {activeTab === 'payments' && <PaymentApprovals students={students} setStudents={setStudents} />}
+                                    {activeTab === 'classes' && <ClassManagement />}
+                                    {activeTab === 'marks' && <ExamMarks students={students} />}
+                                    {activeTab === 'homework' && <HomeworkMarks students={students} />}
+                                    {activeTab === 'recordings' && <ClassRecordings />}
+                                    {activeTab === 'home-videos' && <HomepageHighlights />}
+                                    {activeTab === 'reports' && <SystemReports students={students} />}
+                                </ErrorBoundary>
+                            </motion.div>
+                        </AnimatePresence>
+                    )}
                 </div>
             </main>
         </div>

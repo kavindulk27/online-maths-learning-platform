@@ -7,10 +7,11 @@ import {
     UserPlus,
 } from 'lucide-react';
 
-const Dashboard = ({ students }) => {
-    const totalStudents = students.length;
-    const pendingPayments = students.filter(s => s.status === 'Pending').length;
-    const approvedStudents = students.filter(s => s.status === 'Approved').length;
+const Dashboard = ({ stats }) => {
+    const totalStudents = stats?.total_students || 0;
+    const pendingPayments = stats?.pending_payments || 0;
+    const totalRevenue = stats?.total_revenue || 0;
+    const newStudents = stats?.new_students_this_month || 0;
 
     return (
         <div className="space-y-8">
@@ -18,9 +19,9 @@ const Dashboard = ({ students }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                     { label: 'Total Students', value: totalStudents.toLocaleString(), icon: <Users size={24} />, color: 'bg-blue-500' },
-                    { label: 'Approved Students', value: approvedStudents.toLocaleString(), icon: <CheckCircle2 size={24} />, color: 'bg-green-500' },
+                    { label: 'New This Month', value: newStudents.toLocaleString(), icon: <UserPlus size={24} />, color: 'bg-green-500' },
                     { label: 'Pending Approvals', value: pendingPayments.toLocaleString(), icon: <CreditCard size={24} />, color: 'bg-orange-500' },
-                    { label: 'Today\'s Classes', value: '02', icon: <Video size={24} />, color: 'bg-purple-500' },
+                    { label: 'Total Revenue', value: `Rs. ${totalRevenue.toLocaleString()}`, icon: <CheckCircle2 size={24} />, color: 'bg-purple-500' },
                 ].map((stat, i) => (
                 <div key={i} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center space-x-4">
                     <div className={`${stat.color} p-4 rounded-2xl text-white shadow-lg`}>

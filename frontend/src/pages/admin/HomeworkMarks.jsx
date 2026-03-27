@@ -8,6 +8,7 @@ import {
     Users,
     ChevronDown,
 } from 'lucide-react';
+import axiosInstance from '../../api/axios';
 
 const HomeworkMarks = ({ students }) => {
     const [selectedWeek, setSelectedWeek] = useState('Week 01');
@@ -37,28 +38,33 @@ const HomeworkMarks = ({ students }) => {
         }));
     };
 
-    const handleSaveAll = () => {
+    const handleSaveAll = async () => {
         setIsSaving(true);
-        setTimeout(() => {
-            const allMarks = JSON.parse(localStorage.getItem('all_homework_marks') || '[]');
-            let updatedMarks = allMarks.filter(m => !(m.week === selectedWeek && m.grade === selectedGrade));
-            
-            Object.keys(tempMarks).forEach(stuId => {
-                updatedMarks.push({
-                    studentId: stuId,
-                    grade: selectedGrade,
-                    week: selectedWeek,
-                    mark: tempMarks[stuId],
-                    date: new Date().toLocaleDateString(),
-                    timestamp: Date.now()
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const gradeScore = { 'A': 90, 'B': 75, 'C': 60, 'S': 45, 'W': 30 };
+            const promises = Object.keys(tempMarks).map(stuId => {
+                const stu = homeworkStudents.find(s => s.id === stuId);
+                if (!stu) return null;
+                return axiosInstance.post('academic/marks/', {
+                    student: stu.userId || stuId,
+                    type: 'homework',
+                    subject: selectedWeek,
+                    score: gradeScore[tempMarks[stuId]] || 0,
+                    total_possible: 100,
+                    date: today,
+                    remarks: tempMarks[stuId],
                 });
-            });
+            }).filter(Boolean);
 
-            localStorage.setItem('all_homework_marks', JSON.stringify(updatedMarks));
-            window.dispatchEvent(new Event('storage'));
-            setIsSaving(false);
+            await Promise.all(promises);
             alert('සියලුම ලකුණු සාර්ථකව සුරැකුවා! (All marks saved successfully!)');
-        }, 800);
+        } catch (error) {
+            console.error('Error saving homework:', error);
+            alert('Error saving homework marks.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const markedCount = Object.keys(tempMarks).length;

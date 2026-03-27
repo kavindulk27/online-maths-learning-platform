@@ -22,37 +22,66 @@ import RecordingsSection from './RecordingsSection';
 import PaymentSection from './PaymentSection';
 import ProfileSection from './ProfileSection';
 
+import axiosInstance from '../../api/axios';
+
 const StudentDashboard = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('classes');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
     
-    // Student data state with localStorage persistence
-    const [student, setStudent] = useState(() => {
-        const saved = localStorage.getItem('current_student');
-        if (saved) return JSON.parse(saved);
-        return {
-            name: "",
-            id: "",
-            grade: "",
-            school: "",
-            email: "",
-            studentPhone: "",
-            parentPhone: "",
-            district: "",
-            paymentStatus: "Unpaid"
-        };
+    // Student data state
+    const [student, setStudent] = useState({
+        name: "",
+        id: "",
+        grade: "",
+        school: "",
+        email: "",
+        studentPhone: "",
+        parentPhone: "",
+        district: "",
+        paymentStatus: "Unpaid"
     });
 
-    // Sync from localStorage if updated by another tab (e.g. Admin)
+    const fetchStudentProfile = async () => {
+        try {
+            setLoading(true);
+            const response = await axiosInstance.get('students/profiles/');
+            const profile = response.data[0]; // Logic for individual student
+            
+            if (profile) {
+                setStudent({
+                    name: profile.user.first_name || profile.user.username,
+                    id: profile.user.username, // Student ID (2026-0001) is stored as username
+                    grade: profile.grade,
+                    school: profile.school,
+                    email: profile.user.email,
+                    studentPhone: profile.user.phone || '',
+                    parentPhone: profile.parent_phone || '',
+                    district: profile.district || '',
+                    paymentStatus: 'Unpaid' // Placeholder for now
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching student profile:', error);
+            if (error.response?.status === 401) {
+                navigate('/login');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
     React.useEffect(() => {
-        const handleStorage = () => {
-            const saved = localStorage.getItem('current_student');
-            if (saved) setStudent(JSON.parse(saved));
-        };
-        window.addEventListener('storage', handleStorage);
-        return () => window.removeEventListener('storage', handleStorage);
+        fetchStudentProfile();
     }, []);
+
+    const handleLogout = () => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('current_student');
+        navigate('/login');
+    };
 
     const tabs = [
         { id: 'classes', label: 'My Classes', icon: Video },
@@ -127,7 +156,7 @@ const StudentDashboard = () => {
 
                 <div className="p-6 border-t border-gray-50">
                     <button 
-                        onClick={() => navigate('/login')}
+                        onClick={handleLogout}
                         className="flex items-center space-x-3 text-red-500 hover:text-red-600 transition-colors font-bold text-sm px-4"
                     >
                         <LogOut size={20} />
@@ -138,8 +167,14 @@ const StudentDashboard = () => {
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col min-w-0 bg-gray-50/50">
-                {/* Header */}
-                <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-4 md:px-12 sticky top-0 z-30">
+                {loading ? (
+                    <div className="flex-1 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                    </div>
+                ) : (
+                    <>
+                        {/* Header */}
+                        <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-4 md:px-12 sticky top-0 z-30">
                     <div className="flex items-center space-x-4">
                         {/* Mobile Toggle */}
                         <button 
@@ -180,6 +215,8 @@ const StudentDashboard = () => {
                         </motion.div>
                     </AnimatePresence>
                 </main>
+                    </>
+                )}
             </div>
         </div>
     );

@@ -9,6 +9,7 @@ import {
     Upload,
     ChevronDown,
 } from 'lucide-react';
+import axiosInstance from '../../api/axios';
 
 const ExamMarks = ({ students }) => {
     const [selectedGrade, setSelectedGrade] = useState('Grade 11');
@@ -24,25 +25,36 @@ const ExamMarks = ({ students }) => {
     ];
 
     useEffect(() => {
-        // Ensure students list is available and normalized
+        // Normalize students and filter by grade
         const normalizedStudents = students.map(s => {
             if (s.grade && !s.grade.startsWith('Grade ')) {
                 return { ...s, grade: `Grade ${s.grade.trim()}` };
             }
             return s;
         });
-
         const filtered = normalizedStudents.filter(s => s.grade === selectedGrade);
         setMarksStudents(filtered);
-        
-        const allMarks = JSON.parse(localStorage.getItem('all_exam_marks') || '[]');
-        const existingMarks = {};
-        allMarks.forEach(m => {
-            if (m.month === selectedMonth && m.grade === selectedGrade) {
-                existingMarks[m.studentId] = m.marks.toString();
+
+        // Load existing marks for this grade+month from backend
+        const loadExistingMarks = async () => {
+            try {
+                const response = await axiosInstance.get('academic/marks/');
+                const existingMarks = {};
+                response.data.forEach(m => {
+                    if (
+                        m.type === 'exam' &&
+                        m.subject === selectedMonth &&
+                        new Date(m.date).toLocaleString('en', { month: 'long' }) === selectedMonth
+                    ) {
+                        existingMarks[m.student] = m.score.toString();
+                    }
+                });
+                setTempMarks(existingMarks);
+            } catch (err) {
+                console.error('Error loading marks:', err);
             }
-        });
-        setTempMarks(existingMarks);
+        };
+        loadExistingMarks();
     }, [selectedGrade, selectedMonth, students]);
 
     const updateMark = (studentId, marks) => {
@@ -52,31 +64,34 @@ const ExamMarks = ({ students }) => {
         }));
     };
 
-    const handleSaveAll = () => {
+    const handleSaveAll = async () => {
         setIsSaving(true);
-        setTimeout(() => {
-            const allMarks = JSON.parse(localStorage.getItem('all_exam_marks') || '[]');
-            
-            let updatedMarks = allMarks.filter(m => !(m.month === selectedMonth && m.grade === selectedGrade));
-            
-            Object.keys(tempMarks).forEach(stuId => {
-                if (tempMarks[stuId] !== '') {
-                    updatedMarks.push({
-                        studentId: stuId,
-                        grade: selectedGrade,
-                        month: selectedMonth,
-                        marks: parseFloat(tempMarks[stuId]),
-                        date: new Date().toLocaleDateString(),
-                        timestamp: Date.now()
-                    });
-                }
-            });
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const promises = Object.keys(tempMarks).map(stuUsername => {
+                if (tempMarks[stuUsername] === '') return null;
+                // Find student user id by username
+                const stu = marksStudents.find(s => s.id === stuUsername);
+                if (!stu) return null;
+                return axiosInstance.post('academic/marks/', {
+                    student: stu.userId || stuUsername,
+                    type: 'exam',
+                    subject: selectedMonth,
+                    score: parseFloat(tempMarks[stuUsername]),
+                    total_possible: 100,
+                    date: today,
+                    remarks: `${selectedGrade} ${selectedMonth} Exam`,
+                });
+            }).filter(Boolean);
 
-            localStorage.setItem('all_exam_marks', JSON.stringify(updatedMarks));
-            window.dispatchEvent(new Event('storage'));
-            setIsSaving(false);
+            await Promise.all(promises);
             alert(`${selectedGrade} - ${selectedMonth} විභාග ලකුණු සාර්ථකව සුරැකුවා!`);
-        }, 800);
+        } catch (error) {
+            console.error('Error saving marks:', error);
+            alert('Error saving marks. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const filteredStudents = marksStudents.filter(s => 

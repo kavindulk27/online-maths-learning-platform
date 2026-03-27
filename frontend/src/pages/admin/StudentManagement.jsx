@@ -2,15 +2,18 @@ import { useState } from 'react';
 import { 
     Search,
     Plus,
-    Edit2,
     CheckCircle2,
     XCircle,
     User,
+    Trash2,
+    Loader2
 } from 'lucide-react';
+import axiosInstance from '../../api/axios';
 
 const StudentManagement = ({ students, setStudents }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedGrade, setSelectedGrade] = useState('Grade 6');
+    const [togglingId, setTogglingId] = useState(null);
 
     const handleDeleteStudent = (id) => {
         if (window.confirm('පද්ධතියෙන් මෙම ශිෂ්‍යයා සම්පූර්ණයෙන්ම ඉවත් කිරීමට ඔබට විශ්වාසද? (Are you sure you want to delete this student?)')) {
@@ -20,22 +23,45 @@ const StudentManagement = ({ students, setStudents }) => {
         }
     };
 
-    const grades = ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11'];
-
-    const handleStatusToggle = (student) => {
-        const newStatus = student.status === 'Approved' ? 'Unpaid' : 'Approved';
-        const updatedStudents = students.map(s => 
-            s.id === student.id ? { ...s, status: newStatus } : s
-        );
-        setStudents(updatedStudents);
-        localStorage.setItem('all_students', JSON.stringify(updatedStudents));
-
-        const currentStudent = JSON.parse(localStorage.getItem('current_student') || '{}');
-        if (currentStudent.id === student.id) {
-            localStorage.setItem('current_student', JSON.stringify({ ...currentStudent, paymentStatus: newStatus }));
-            window.dispatchEvent(new Event('storage'));
+    const handleManualApprove = async (student) => {
+        const currentMonth = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        setTogglingId(student.id);
+        
+        try {
+            if (student.status === 'Paid') {
+                // If already paid, we delete the payment record for this month to mark as unpaid
+                // First get the payments to find the ID
+                const res = await axiosInstance.get('payments/');
+                const payment = res.data.find(p => p.student_details?.username === student.id && p.month === currentMonth && p.status === 'approved');
+                
+                if (payment) {
+                    await axiosInstance.delete(`payments/${payment.id}/`);
+                }
+                
+                setStudents(prev => prev.map(s => s.id === student.id ? { ...s, status: 'Unpaid' } : s));
+            } else {
+                // Mark as Paid: Create an approved payment record
+                const fee = parseInt(student.grade?.replace(/\D/g, '') || '0') <= 9 ? 800 : 1000;
+                
+                await axiosInstance.post('payments/', {
+                    student_username: student.id, // We'll need to handle this in backend perform_create or similar
+                    userId: student.userId,
+                    amount: fee,
+                    month: currentMonth,
+                    status: 'approved'
+                });
+                
+                setStudents(prev => prev.map(s => s.id === student.id ? { ...s, status: 'Paid' } : s));
+            }
+        } catch (error) {
+            console.error('Error toggling payment status:', error);
+            alert('Status එක වෙනස් කිරීමට නොහැකි විය. (Failed to update status.)');
+        } finally {
+            setTogglingId(null);
         }
     };
+
+    const grades = ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11'];
 
     const filteredStudents = students.filter(s => 
         s.grade === selectedGrade && (
@@ -117,7 +143,7 @@ const StudentManagement = ({ students, setStudents }) => {
                                         </td>
                                         <td className="px-8 py-6">
                                             <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                                stu.status === 'Approved' ? 'bg-green-100 text-green-600' : 
+                                                stu.status === 'Paid' ? 'bg-green-100 text-green-600' : 
                                                 stu.status === 'Pending' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'
                                             }`}>
                                                 {stu.status}
@@ -126,21 +152,17 @@ const StudentManagement = ({ students, setStudents }) => {
                                         <td className="px-8 py-6 text-right">
                                             <div className="flex items-center justify-end space-x-2">
                                                 <button 
-                                                    onClick={() => handleStatusToggle(stu)}
+                                                    onClick={() => handleManualApprove(stu)}
+                                                    disabled={togglingId === stu.id}
                                                     className={`p-2 rounded-xl transition-all shadow-sm flex items-center space-x-2 ${
-                                                        stu.status === 'Approved' 
+                                                        stu.status === 'Paid' 
                                                         ? 'bg-red-50 text-red-600 hover:bg-red-100' 
                                                         : 'bg-green-50 text-green-600 hover:bg-green-100'
-                                                    }`}
-                                                    title={stu.status === 'Approved' ? 'Mark as Unpaid' : 'Quick Approve Payment'}
+                                                    } ${togglingId === stu.id ? 'opacity-50 cursor-wait' : ''}`}
+                                                    title={stu.status === 'Paid' ? 'Mark as Unpaid' : 'Mark as Paid'}
                                                 >
-                                                    {stu.status === 'Approved' ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
-                                                </button>
-                                                <button 
-                                                    onClick={() => alert(`Editing student: ${stu.name}\nFeature coming soon: profile details update.`)}
-                                                    className="p-2 text-gray-400 hover:text-secondary hover:bg-secondary/5 rounded-lg transition-all"
-                                                >
-                                                    <Edit2 size={16} />
+                                                    {togglingId === stu.id ? <Loader2 className="animate-spin" size={16} /> : 
+                                                     (stu.status === 'Paid' ? <XCircle size={16} /> : <CheckCircle2 size={16} />)}
                                                 </button>
                                                 <button 
                                                     onClick={() => handleDeleteStudent(stu.id)}
